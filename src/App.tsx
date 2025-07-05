@@ -945,7 +945,6 @@ const App: React.FC = () => {
   const UserDashboardPage = () => {
     const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
     const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
-    const [dateFilter, ] = useState<any>(null);
     const [activeTab, setActiveTab] = useState('attendance');
     const [selectedMonth, setSelectedMonth] = useState(dayjs());
 
@@ -969,14 +968,15 @@ const App: React.FC = () => {
       return true;
     });
 
-    const filteredLeaves = dateFilter
-      ? userLeaves.filter(leave => {
-        const leaveDate = leave.leaveDate;
-        const startDate = dateFilter[0].format('YYYY-MM-DD');
-        const endDate = dateFilter[1].format('YYYY-MM-DD');
-        return leaveDate >= startDate && leaveDate <= endDate;
-      })
-      : userLeaves;
+    const filteredLeaves = userLeaves.filter(leave => {
+      const leaveDate = leave.leaveDate;
+      if (startDate && endDate) {
+        const start = startDate.format('YYYY-MM-DD');
+        const end = endDate.format('YYYY-MM-DD');
+        return leaveDate >= start && leaveDate <= end;
+      }
+      return true;
+    });
 
     // Function to get date range
     const getDateRange = (startDate: string, endDate?: string): string[] => {
@@ -1157,7 +1157,7 @@ const App: React.FC = () => {
             placeholder="วันที่เริ่มต้น"
             value={startDate}
             onChange={setStartDate}
-            className="w-full mb-2"
+            className="w-full"
           />
           <DatePicker
             locale={locale}
@@ -1172,7 +1172,7 @@ const App: React.FC = () => {
               setStartDate(null);
               setEndDate(null);
             }}
-            className="w-full mt-2"
+            className="w-full"
             icon={<SyncOutlined />}
           >
             ล้างตัวกรอง
@@ -1322,7 +1322,7 @@ const App: React.FC = () => {
                 >
                   <Button icon={<FilterOutlined />} size="large">
                     กรองข้อมูล
-                    {dateFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                    {(startDate || endDate) && <CheckOutlined className="ml-2 text-green-600" />}
                   </Button>
                 </Popover>
                 <Button
@@ -1373,9 +1373,10 @@ const App: React.FC = () => {
   const DashboardPage = () => {
     const [attendanceStartDate, setAttendanceStartDate] = useState<dayjs.Dayjs | null>(null);
     const [attendanceEndDate, setAttendanceEndDate] = useState<dayjs.Dayjs | null>(null);
-    const [attendanceFilter, setAttendanceFilter] = useState<any>(null);
-    const [leaveFilter, setLeaveFilter] = useState<any>(null);
-    const [bookingFilter, setBookingFilter] = useState<any>(null);
+    const [leaveStartDate, setLeaveStartDate] = useState<dayjs.Dayjs | null>(null);
+    const [leaveEndDate, setLeaveEndDate] = useState<dayjs.Dayjs | null>(null);
+    const [bookingStartDate, setBookingStartDate] = useState<dayjs.Dayjs | null>(null);
+    const [bookingEndDate, setBookingEndDate] = useState<dayjs.Dayjs | null>(null);
     const [activeTab, setActiveTab] = useState('attendance');
 
     // Update leave status
@@ -1511,23 +1512,25 @@ const App: React.FC = () => {
       return true;
     });
 
-    const filteredLeaves = leaveFilter
-      ? leaveRequests.filter(leave => {
-        const leaveDate = leave.leaveDate;
-        const startDate = leaveFilter[0].format('YYYY-MM-DD');
-        const endDate = leaveFilter[1].format('YYYY-MM-DD');
-        return leaveDate >= startDate && leaveDate <= endDate;
-      })
-      : leaveRequests;
+    const filteredLeaves = leaveRequests.filter(leave => {
+      const leaveDate = leave.leaveDate;
+      if (leaveStartDate && leaveEndDate) {
+        const start = leaveStartDate.format('YYYY-MM-DD');
+        const end = leaveEndDate.format('YYYY-MM-DD');
+        return leaveDate >= start && leaveDate <= end;
+      }
+      return true;
+    });
 
-    const filteredBookings = bookingFilter
-      ? roomBookings.filter(booking => {
-        const bookingDate = booking.date;
-        const startDate = bookingFilter[0].format('YYYY-MM-DD');
-        const endDate = bookingFilter[1].format('YYYY-MM-DD');
-        return bookingDate >= startDate && bookingDate <= endDate;
-      })
-      : roomBookings;
+    const filteredBookings = roomBookings.filter(booking => {
+      const bookingDate = booking.date;
+      if (bookingStartDate && bookingEndDate) {
+        const start = bookingStartDate.format('YYYY-MM-DD');
+        const end = bookingEndDate.format('YYYY-MM-DD');
+        return bookingDate >= start && bookingDate <= end;
+      }
+      return true;
+    });
 
     // Enhanced Stats Card Component
     const EnhancedStatsCard: React.FC<{
@@ -1671,10 +1674,12 @@ const App: React.FC = () => {
 
     // Filter Component with predefined ranges
     const FilterComponent: React.FC<{
-      filter: any;
-      setFilter: React.Dispatch<React.SetStateAction<any>>;
-      title: string
-    }> = ({ title }) => {
+      startDate: dayjs.Dayjs | null;
+      setStartDate: React.Dispatch<React.SetStateAction<dayjs.Dayjs | null>>;
+      endDate: dayjs.Dayjs | null;
+      setEndDate: React.Dispatch<React.SetStateAction<dayjs.Dayjs | null>>;
+      title: string;
+    }> = ({ startDate, setStartDate, endDate, setEndDate, title }) => {
       return (
         <div className="p-4 w-80">
           <div className="font-semibold text-gray-900 mb-3">{title}</div>
@@ -1683,22 +1688,22 @@ const App: React.FC = () => {
               locale={locale}
               format="DD/MM/YYYY"
               placeholder="วันที่เริ่มต้น"
-              value={attendanceStartDate}
-              onChange={setAttendanceStartDate}
-              className="w-full mb-2"
+              value={startDate}
+              onChange={setStartDate}
+              className="w-full"
             />
             <DatePicker
               locale={locale}
               format="DD/MM/YYYY"
               placeholder="วันที่สิ้นสุด"
-              value={attendanceEndDate}
-              onChange={setAttendanceEndDate}
+              value={endDate}
+              onChange={setEndDate}
               className="w-full"
             />
             <Button
               onClick={() => {
-                setAttendanceStartDate(null);
-                setAttendanceEndDate(null);
+                setStartDate(null);
+                setEndDate(null);
               }}
               className="w-full mt-2"
               icon={<SyncOutlined />}
@@ -1984,14 +1989,22 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex gap-3">
                       <Popover
-                        content={<FilterComponent filter={attendanceFilter} setFilter={setAttendanceFilter} title="กรองข้อมูลการเข้าโรงเรียน" />}
+                        content={
+                          <FilterComponent
+                            startDate={attendanceStartDate}
+                            setStartDate={setAttendanceStartDate}
+                            endDate={attendanceEndDate}
+                            setEndDate={setAttendanceEndDate}
+                            title="กรองข้อมูลการเข้าโรงเรียน"
+                          />
+                        }
                         title="ตัวกรองขั้นสูง"
                         trigger="click"
                         placement="bottomRight"
                       >
                         <Button icon={<FilterOutlined />} size="large">
                           กรองข้อมูล
-                          {attendanceFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                          {(attendanceStartDate || attendanceEndDate) && <CheckOutlined className="ml-2 text-green-600" />}
                         </Button>
                       </Popover>
                       <Button
@@ -2047,14 +2060,22 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex gap-3">
                       <Popover
-                        content={<FilterComponent filter={leaveFilter} setFilter={setLeaveFilter} title="กรองข้อมูลการลา" />}
+                        content={
+                          <FilterComponent
+                            startDate={leaveStartDate}
+                            setStartDate={setLeaveStartDate}
+                            endDate={leaveEndDate}
+                            setEndDate={setLeaveEndDate}
+                            title="กรองข้อมูลการลา"
+                          />
+                        }
                         title="ตัวกรองขั้นสูง"
                         trigger="click"
                         placement="bottomRight"
                       >
                         <Button icon={<FilterOutlined />} size="large">
                           กรองข้อมูล
-                          {leaveFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                          {(leaveStartDate || leaveEndDate) && <CheckOutlined className="ml-2 text-green-600" />}
                         </Button>
                       </Popover>
                       <Button
@@ -2111,14 +2132,22 @@ const App: React.FC = () => {
                     </div>
                     <div className="flex gap-3">
                       <Popover
-                        content={<FilterComponent filter={bookingFilter} setFilter={setBookingFilter} title="กรองข้อมูลการจอง" />}
+                        content={
+                          <FilterComponent
+                            startDate={bookingStartDate}
+                            setStartDate={setBookingStartDate}
+                            endDate={bookingEndDate}
+                            setEndDate={setBookingEndDate}
+                            title="กรองข้อมูลการจอง"
+                          />
+                        }
                         title="ตัวกรองขั้นสูง"
                         trigger="click"
                         placement="bottomRight"
                       >
                         <Button icon={<FilterOutlined />} size="large">
                           กรองข้อมูล
-                          {bookingFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                          {(bookingStartDate || bookingEndDate) && <CheckOutlined className="ml-2 text-green-600" />}
                         </Button>
                       </Popover>
                       <Button
