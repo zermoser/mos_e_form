@@ -334,10 +334,8 @@ const App: React.FC = () => {
       { key: 'attendance', label: 'บันทึกการเข้าโรงเรียน', icon: <TeamOutlined /> },
       { key: 'leave', label: 'การลางาน', icon: <ClockCircleOutlined /> },
       { key: 'booking', label: 'การจองห้อง', icon: <TagsOutlined /> },
-      ...(currentUser?.role === 'admin'
-        ? [{ key: 'dashboard', label: 'แดชบอร์ด', icon: <BarChartOutlined /> }]
-        : [{ key: 'user-dashboard', label: 'แดชบอร์ดส่วนตัว', icon: <BarChartOutlined /> }]
-      )
+      { key: 'user-dashboard', label: 'ภาพรวมการเข้างานของฉัน', icon: <UserOutlined /> },
+      ...(currentUser?.role === 'admin' ? [{ key: 'dashboard', label: 'แดชบอร์ด', icon: <BarChartOutlined /> }] : [])
     ];
 
     const toggleSidebar = () => {
@@ -978,6 +976,23 @@ const App: React.FC = () => {
       })
       : userLeaves;
 
+    // Function to get date range
+    const getDateRange = (startDate: string, endDate?: string): string[] => {
+      if (!endDate) return [startDate];
+
+      const start = dayjs(startDate);
+      const end = dayjs(endDate);
+      const dates: string[] = [];
+
+      let current = start;
+      while (current.isBefore(end) || current.isSame(end)) {
+        dates.push(current.format('YYYY-MM-DD'));
+        current = current.add(1, 'day');
+      }
+
+      return dates;
+    };
+
     // Calendar view - Group data by date
     const calendarData = useMemo(() => {
       const data: Record<string, { attendance?: string; leave?: string }> = {};
@@ -1003,23 +1018,6 @@ const App: React.FC = () => {
 
       return data;
     }, [userAttendance, userLeaves]);
-
-    // Function to get date range
-    const getDateRange = (startDate: string, endDate?: string): string[] => {
-      if (!endDate) return [startDate];
-
-      const start = dayjs(startDate);
-      const end = dayjs(endDate);
-      const dates: string[] = [];
-
-      let current = start;
-      while (current.isBefore(end) || current.isSame(end)) {
-        dates.push(current.format('YYYY-MM-DD'));
-        current = current.add(1, 'day');
-      }
-
-      return dates;
-    };
 
     // Render calendar cell
     const renderCalendarCell = (date: dayjs.Dayjs) => {
@@ -1175,7 +1173,7 @@ const App: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">แดชบอร์ดส่วนตัว</h1>
           <p className="text-gray-600">
-            ข้อมูลการเข้าเรียนและการลาของคุณ {currentUser?.displayName}
+            ข้อมูลการเข้าโรงเรียนและการลาของคุณ {currentUser?.displayName}
           </p>
         </div>
 
@@ -1186,7 +1184,7 @@ const App: React.FC = () => {
                 <CheckCircleOutlined className="text-green-600 text-xl" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">เข้าเรียน</p>
+                <p className="text-sm text-gray-600">เข้าโรงเรียน</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {userAttendance.filter(a => a.status === 'มา').length}
                 </p>
@@ -1226,7 +1224,7 @@ const App: React.FC = () => {
         {/* Calendar View */}
         <Card className="mb-8 border border-gray-200 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-            <h2 className="text-xl font-semibold text-gray-900">ปฏิทินบันทึกการเข้าเรียน</h2>
+            <h2 className="text-xl font-semibold text-gray-900">ปฏิทินบันทึกการเข้าโรงเรียน</h2>
             <div className="flex gap-2">
               <Button
                 onClick={() => setSelectedMonth(selectedMonth.subtract(1, 'month'))}
@@ -1252,8 +1250,8 @@ const App: React.FC = () => {
               value={selectedMonth}
               mode="month"
               headerRender={() => null}
+              fullCellRender={renderCalendarCell}
               className="w-full min-w-[700px]"
-              dateFullCellRender={renderCalendarCell}
             />
           </div>
         </Card>
@@ -1298,7 +1296,7 @@ const App: React.FC = () => {
                 </h2>
                 <p className="text-gray-600">
                   {activeTab === 'attendance'
-                    ? 'ข้อมูลการเข้าเรียนของคุณ'
+                    ? 'ข้อมูลการเข้าโรงเรียนของคุณ'
                     : 'ข้อมูลการลาของคุณ'}
                 </p>
               </div>
@@ -2207,8 +2205,10 @@ const App: React.FC = () => {
       case 'booking':
         return <BookingPage />;
       case 'dashboard':
-        return currentUser.role === 'admin' ? <DashboardPage /> : <AttendancePage />;
-      case 'user-dashboard': // เพิ่มเคสใหม่
+        return currentUser.role === 'admin'
+          ? <DashboardPage />
+          : <UserDashboardPage />;
+      case 'user-dashboard':
         return <UserDashboardPage />;
       default:
         return <AttendancePage />;
