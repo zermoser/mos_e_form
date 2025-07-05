@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   Clock,
@@ -20,7 +20,15 @@ import {
   Bookmark,
   BarChart2,
   Loader,
+  Heart,
+  Stethoscope,
+  Sun,
+  Moon,
+  Lock
 } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { th } from 'date-fns/locale';
 
 // Types
 interface AttendanceRecord {
@@ -38,6 +46,7 @@ interface LeaveRequest {
   leaveDate: string;
   endDate?: string;
   reason: string;
+  type: string;
   timestamp: string;
   status: 'รอดำเนินการ' | 'อนุมัติ' | 'ปฏิเสธ';
 }
@@ -47,7 +56,8 @@ interface RoomBooking {
   fullName: string;
   room: string;
   date: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   purpose: string;
   timestamp: string;
 }
@@ -66,16 +76,27 @@ const MOCK_ATTENDANCE: AttendanceRecord[] = [
 ];
 
 const MOCK_LEAVES: LeaveRequest[] = [
-  { id: '1', fullName: 'นภา สวยงาม', leaveDate: '2025-07-20', reason: 'เหตุฉุกเฉินในครอบครัว', timestamp: '2025-07-14T10:00:00Z', status: 'รอดำเนินการ' },
-  { id: '2', fullName: 'วีระชัย กล้าหาญ', leaveDate: '2025-07-18', reason: 'พบแพทย์', timestamp: '2025-07-13T14:30:00Z', status: 'อนุมัติ' }
+  { id: '1', fullName: 'นภา สวยงาม', leaveDate: '2025-07-20', type: 'ลาป่วย', reason: 'เหตุฉุกเฉินในครอบครัว', timestamp: '2025-07-14T10:00:00Z', status: 'รอดำเนินการ' },
+  { id: '2', fullName: 'วีระชัย กล้าหาญ', leaveDate: '2025-07-18', type: 'ลากิจ', reason: 'พบแพทย์', timestamp: '2025-07-13T14:30:00Z', status: 'อนุมัติ' }
 ];
 
 const MOCK_BOOKINGS: RoomBooking[] = [
-  { id: '1', fullName: 'ธนวัฒน์ พัฒนา', room: 'ห้อง A', date: '2025-07-16', time: '14:00', purpose: 'ประชุมทีม', timestamp: '2025-07-15T11:00:00Z' },
-  { id: '2', fullName: 'อรุณี สว่างใจ', room: 'ห้อง B', date: '2025-07-17', time: '10:00', purpose: 'นำเสนองาน', timestamp: '2025-07-15T12:00:00Z' }
+  { id: '1', fullName: 'ธนวัฒน์ พัฒนา', room: 'ห้อง A', date: '2025-07-16', startTime: '14:00', endTime: '16:00', purpose: 'ประชุมทีม', timestamp: '2025-07-15T11:00:00Z' },
+  { id: '2', fullName: 'อรุณี สว่างใจ', room: 'ห้อง B', date: '2025-07-17', startTime: '10:00', endTime: '12:00', purpose: 'นำเสนองาน', timestamp: '2025-07-15T12:00:00Z' }
 ];
 
 const ROOMS = ['ห้อง A', 'ห้อง B', 'ห้อง C', 'ห้องประชุมใหญ่', 'ห้องปฏิบัติการ 1', 'ห้องปฏิบัติการ 2'];
+const TIME_SLOTS = [
+  '08:00', '09:00', '10:00', '11:00', 
+  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
+];
+const LEAVE_TYPES = [
+  { value: 'ลาป่วย', label: 'ลาป่วย', icon: Stethoscope, color: 'bg-blue-100 text-blue-800' },
+  { value: 'ลากิจ', label: 'ลากิจ', icon: Heart, color: 'bg-pink-100 text-pink-800' },
+  { value: 'ลาพักร้อน', label: 'ลาพักร้อน', icon: Sun, color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'ลาคลอดบุตร', label: 'ลาคลอดบุตร', icon: Moon, color: 'bg-purple-100 text-purple-800' },
+  { value: 'อื่นๆ', label: 'อื่นๆ', icon: FileText, color: 'bg-gray-100 text-gray-800' }
+];
 
 // Utility functions
 const formatDate = (date: string) => {
@@ -109,7 +130,7 @@ const Button: React.FC<{
   children: React.ReactNode;
   onClick?: () => void;
   type?: 'button' | 'submit';
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline';
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost';
   disabled?: boolean;
   className?: string;
   icon?: React.ReactNode;
@@ -120,7 +141,8 @@ const Button: React.FC<{
     secondary: 'bg-white text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 border border-gray-300 shadow-sm hover:shadow-md',
     danger: 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 disabled:opacity-50 shadow-sm hover:shadow-md',
     success: 'bg-gradient-to-r from-green-600 to-teal-500 text-white hover:from-green-700 hover:to-teal-600 disabled:opacity-50 shadow-sm hover:shadow-md',
-    outline: 'bg-transparent border border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50'
+    outline: 'bg-transparent border border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50',
+    ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 disabled:opacity-50'
   };
 
   return (
@@ -136,32 +158,6 @@ const Button: React.FC<{
   );
 };
 
-const Input: React.FC<{
-  label: string;
-  type?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  required?: boolean;
-  className?: string;
-  placeholder?: string;
-}> = ({ label, type = 'text', value, onChange, required = false, className = '', placeholder }) => {
-  return (
-    <div className={`mb-4 ${className}`}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        required={required}
-        placeholder={placeholder}
-        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-      />
-    </div>
-  );
-};
-
 const Select: React.FC<{
   label: string;
   value: string;
@@ -169,25 +165,34 @@ const Select: React.FC<{
   options: { value: string; label: string }[];
   required?: boolean;
   className?: string;
-}> = ({ label, value, onChange, options, required = false, className = '' }) => {
+  icon?: React.ReactNode;
+}> = ({ label, value, onChange, options, required = false, className = '', icon }) => {
   return (
     <div className={`mb-4 ${className}`}>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      <select
-        value={value}
-        onChange={onChange}
-        required={required}
-        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiYjMzg7NmNhNjQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[right_0.75rem_center]"
-      >
-        <option value="">เลือก {label}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        {icon && (
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            {icon}
+          </div>
+        )}
+        <select
+          value={value}
+          onChange={onChange}
+          required={required}
+          className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-no-repeat bg-[right_0.75rem_center] ${icon ? 'pl-10' : ''}`}
+          style={{ backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2Y2E2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==")` }}
+        >
+          <option value="">เลือก {label}</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 };
@@ -284,18 +289,21 @@ const App: React.FC = () => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(MOCK_LEAVES);
   const [roomBookings, setRoomBookings] = useState<RoomBooking[]>(MOCK_BOOKINGS);
 
+  // Form states
   const [leaveForm, setLeaveForm] = useState({
     fullName: '',
     leaveDate: '',
     endDate: '',
-    reason: ''
+    reason: '',
+    type: ''
   });
 
   const [bookingForm, setBookingForm] = useState({
     fullName: '',
     room: '',
     date: '',
-    time: '',
+    startTime: '',
+    endTime: '',
     purpose: ''
   });
 
@@ -323,15 +331,15 @@ const App: React.FC = () => {
       setTimeout(() => {
         // Mock authentication
         if (username === 'admin' && password === 'admin123') {
-          setCurrentUser({
-            username,
+          setCurrentUser({ 
+            username, 
             role: 'admin',
             displayName: 'ผู้ดูแลระบบ'
           });
           setCurrentPage('dashboard');
         } else if (username === 'user' && password === 'user123') {
-          setCurrentUser({
-            username,
+          setCurrentUser({ 
+            username, 
             role: 'user',
             displayName: 'สมชาย ใจดี'
           });
@@ -345,8 +353,8 @@ const App: React.FC = () => {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-lg border-0 rounded-2xl overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white text-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white text-center">
             <div className="bg-white/20 backdrop-blur-sm w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="text-white" size={28} />
             </div>
@@ -354,28 +362,52 @@ const App: React.FC = () => {
             <p className="opacity-90">ระบบบันทึกการเข้าโรงเรียนและการจองห้อง</p>
           </div>
 
-          <div className="p-6">
+          <div className="p-8">
             <form onSubmit={handleLogin}>
-              <Input
-                label="ชื่อผู้ใช้"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                placeholder="กรอกชื่อผู้ใช้ของคุณ"
-              />
-              <Input
-                label="รหัสผ่าน"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="กรอกรหัสผ่านของคุณ"
-              />
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ชื่อผู้ใช้ <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <User size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    placeholder="กรอกชื่อผู้ใช้ของคุณ"
+                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  รหัสผ่าน <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="กรอกรหัสผ่านของคุณ"
+                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+              
               {error && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+                <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
                   {error}
                 </div>
               )}
+              
               <Button
                 type="submit"
                 className="w-full mt-2"
@@ -395,21 +427,25 @@ const App: React.FC = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-sm text-gray-600 border-t pt-4">
-              <p className="font-medium text-center mb-1">ข้อมูลทดสอบ:</p>
-              <div className="grid grid-cols-2 gap-2 text-center">
-                <div className="bg-indigo-50 p-2 rounded-lg">
-                  <p className="font-medium">ผู้ดูแลระบบ</p>
-                  <p>admin / admin123</p>
+            <div className="mt-6 text-sm text-gray-600 border-t pt-6">
+              <p className="font-medium text-center mb-3">ข้อมูลทดสอบ:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                  <p className="font-medium flex items-center gap-1">
+                    <User size={14} /> ผู้ดูแลระบบ
+                  </p>
+                  <p className="mt-1">admin / admin123</p>
                 </div>
-                <div className="bg-indigo-50 p-2 rounded-lg">
-                  <p className="font-medium">ผู้ใช้งาน</p>
-                  <p>user / user123</p>
+                <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                  <p className="font-medium flex items-center gap-1">
+                    <User size={14} /> ผู้ใช้งาน
+                  </p>
+                  <p className="mt-1">user / user123</p>
                 </div>
               </div>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     );
   };
@@ -509,7 +545,8 @@ const App: React.FC = () => {
     icon: React.ReactNode;
     color: string;
     className?: string;
-  }> = ({ title, value, icon, color, className = '' }) => {
+    trend?: number;
+  }> = ({ title, value, icon, color, className = '', trend }) => {
     return (
       <div className={`bg-white rounded-2xl shadow p-5 flex items-center ${className}`}>
         <div className={`${color} w-12 h-12 rounded-xl flex items-center justify-center mr-4`}>
@@ -518,6 +555,11 @@ const App: React.FC = () => {
         <div>
           <p className="text-gray-500 text-sm">{title}</p>
           <p className="text-2xl font-bold text-gray-800">{value}</p>
+          {trend !== undefined && (
+            <p className={`text-xs mt-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% จากเมื่อวาน
+            </p>
+          )}
         </div>
       </div>
     );
@@ -527,12 +569,25 @@ const App: React.FC = () => {
   const AttendancePage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastCheckIn, setLastCheckIn] = useState<AttendanceRecord | null>(null);
+    const [currentTime, setCurrentTime] = useState('');
+
+    useEffect(() => {
+      const updateTime = () => {
+        const { time } = getCurrentDateTime();
+        setCurrentTime(time);
+      };
+      
+      updateTime();
+      const interval = setInterval(updateTime, 1000);
+      
+      return () => clearInterval(interval);
+    }, []);
 
     const handleCheckIn = () => {
       setIsSubmitting(true);
-
+      
       const { date, timestamp } = getCurrentDateTime();
-
+      
       // Simulate API call
       setTimeout(() => {
         const newRecord: AttendanceRecord = {
@@ -545,7 +600,7 @@ const App: React.FC = () => {
 
         setAttendanceRecords([...attendanceRecords, newRecord]);
         setLastCheckIn(newRecord);
-
+        
         setSuccessMessage('บันทึกการเข้าโรงเรียนสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsSubmitting(false);
@@ -562,15 +617,17 @@ const App: React.FC = () => {
           <p className="text-gray-600">บันทึกการเข้าโรงเรียนประจำวันของคุณ</p>
         </div>
 
-        <Card className="border border-gray-200 text-center p-10">
+        <Card className="border border-gray-200 text-center p-10 bg-gradient-to-br from-indigo-50 to-purple-50">
           <div className="mb-6">
             <p className="text-lg font-medium text-gray-800 mb-1">ข้อมูลผู้ใช้</p>
-            <p className="text-gray-700">{currentUser?.displayName}</p>
-            <p className="text-sm text-gray-500 mt-2">
-              {formatDate(getCurrentDateTime().date)} {getCurrentDateTime().time}
-            </p>
+            <div className="bg-white rounded-xl p-4 shadow-sm inline-block">
+              <p className="text-gray-700 font-medium">{currentUser?.displayName}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {formatDate(getCurrentDateTime().date)} {currentTime}
+              </p>
+            </div>
           </div>
-
+          
           <Button
             onClick={handleCheckIn}
             className="w-full max-w-xs mx-auto"
@@ -617,6 +674,7 @@ const App: React.FC = () => {
           leaveDate: leaveForm.leaveDate,
           endDate: leaveForm.endDate || undefined,
           reason: leaveForm.reason,
+          type: leaveForm.type,
           timestamp: new Date().toISOString(),
           status: 'รอดำเนินการ'
         };
@@ -626,7 +684,8 @@ const App: React.FC = () => {
           fullName: '',
           leaveDate: '',
           endDate: '',
-          reason: ''
+          reason: '',
+          type: ''
         });
 
         setSuccessMessage('ส่งคำขอลางานสำเร็จแล้ว!');
@@ -651,21 +710,76 @@ const App: React.FC = () => {
               <p className="font-medium text-gray-800">ผู้ส่งคำขอ: {currentUser?.displayName}</p>
             </div>
 
-            <Input
-              label="วันที่เริ่มลา"
-              type="date"
-              value={leaveForm.leaveDate}
-              onChange={(e) => setLeaveForm({ ...leaveForm, leaveDate: e.target.value })}
-              required
-            />
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ประเภทการลา <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {LEAVE_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setLeaveForm({...leaveForm, type: type.value})}
+                    className={`p-3 rounded-xl border ${leaveForm.type === type.value 
+                      ? `${type.color.split(' ')[0]} border-indigo-600 shadow-inner` 
+                      : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    <div className="flex flex-col items-center">
+                      <type.icon size={24} className="mb-2" />
+                      <span className="text-sm">{type.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <Input
-              label="วันที่สิ้นสุดการลา (ไม่จำเป็น)"
-              type="date"
-              value={leaveForm.endDate}
-              onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
-              placeholder="เว้นว่างไว้สำหรับลาเพียงวันเดียว"
-            />
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  วันที่เริ่มลา <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Calendar size={18} />
+                  </div>
+                  <DatePicker
+                    selected={leaveForm.leaveDate ? new Date(leaveForm.leaveDate) : null}
+                    onChange={(date: Date | null) => {
+                      if (date) {
+                        setLeaveForm({...leaveForm, leaveDate: date.toISOString().split('T')[0]});
+                      }
+                    }}
+                    dateFormat="dd/MM/yyyy"
+                    locale={th}
+                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholderText="เลือกวันที่"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  วันที่สิ้นสุดการลา
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Calendar size={18} />
+                  </div>
+                  <DatePicker
+                    selected={leaveForm.endDate ? new Date(leaveForm.endDate) : null}
+                    onChange={(date: Date | null) => {
+                      if (date) {
+                        setLeaveForm({...leaveForm, endDate: date.toISOString().split('T')[0]});
+                      }
+                    }}
+                    dateFormat="dd/MM/yyyy"
+                    locale={th}
+                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholderText="เลือกวันที่"
+                  />
+                </div>
+              </div>
+            </div>
 
             <TextArea
               label="เหตุผลการลา"
@@ -680,7 +794,7 @@ const App: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !leaveForm.type}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
@@ -705,12 +819,24 @@ const App: React.FC = () => {
   const BookingPage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availabilityCheck, setAvailabilityCheck] = useState<{ available: boolean; message: string } | null>(null);
+    const [bookingDate, setBookingDate] = useState<Date | null>(null);
 
     const checkAvailability = () => {
-      if (!bookingForm.room || !bookingForm.date || !bookingForm.time) {
+      if (!bookingForm.room || !bookingForm.date || !bookingForm.startTime || !bookingForm.endTime) {
         setAvailabilityCheck({
           available: false,
-          message: 'กรุณาเลือกห้อง วันที่ และเวลา'
+          message: 'กรุณาเลือกห้อง วันที่ และช่วงเวลา'
+        });
+        return;
+      }
+
+      const startHour = parseInt(bookingForm.startTime.split(':')[0]);
+      const endHour = parseInt(bookingForm.endTime.split(':')[0]);
+      
+      if (endHour <= startHour) {
+        setAvailabilityCheck({
+          available: false,
+          message: 'เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น'
         });
         return;
       }
@@ -718,7 +844,12 @@ const App: React.FC = () => {
       const isBooked = roomBookings.some(booking =>
         booking.room === bookingForm.room &&
         booking.date === bookingForm.date &&
-        booking.time === bookingForm.time
+        (
+          (parseInt(bookingForm.startTime) >= parseInt(booking.startTime) && 
+          parseInt(bookingForm.startTime) < parseInt(booking.endTime)) ||
+          (parseInt(bookingForm.endTime) > parseInt(booking.startTime) && 
+          parseInt(bookingForm.endTime) <= parseInt(booking.endTime))
+        )
       );
 
       setAvailabilityCheck({
@@ -736,7 +867,12 @@ const App: React.FC = () => {
         const isBooked = roomBookings.some(booking =>
           booking.room === bookingForm.room &&
           booking.date === bookingForm.date &&
-          booking.time === bookingForm.time
+          (
+            (parseInt(bookingForm.startTime) >= parseInt(booking.startTime) && 
+             parseInt(bookingForm.startTime) < parseInt(booking.endTime)) ||
+            (parseInt(bookingForm.endTime) > parseInt(booking.startTime) && 
+             parseInt(bookingForm.endTime) <= parseInt(booking.endTime))
+          )
         );
 
         if (isBooked) {
@@ -753,7 +889,8 @@ const App: React.FC = () => {
           fullName: currentUser?.displayName || '',
           room: bookingForm.room,
           date: bookingForm.date,
-          time: bookingForm.time,
+          startTime: bookingForm.startTime,
+          endTime: bookingForm.endTime,
           purpose: bookingForm.purpose,
           timestamp: new Date().toISOString()
         };
@@ -763,7 +900,8 @@ const App: React.FC = () => {
           fullName: '',
           room: '',
           date: '',
-          time: '',
+          startTime: '',
+          endTime: '',
           purpose: ''
         });
         setAvailabilityCheck(null);
@@ -796,23 +934,86 @@ const App: React.FC = () => {
               onChange={(e) => setBookingForm({ ...bookingForm, room: e.target.value })}
               options={ROOMS.map(room => ({ value: room, label: room }))}
               required
+              icon={<MapPin size={18} />}
             />
 
-            <Input
-              label="วันที่จอง"
-              type="date"
-              value={bookingForm.date}
-              onChange={(e) => setBookingForm({ ...bookingForm, date: e.target.value })}
-              required
-            />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                วันที่จอง <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <Calendar size={18} />
+                </div>
+                <DatePicker
+                  selected={bookingDate}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      setBookingDate(date);
+                      setBookingForm({...bookingForm, date: date.toISOString().split('T')[0]});
+                    }
+                  }}
+                  dateFormat="dd/MM/yyyy"
+                  locale={th}
+                  className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholderText="เลือกวันที่"
+                />
+              </div>
+            </div>
 
-            <Input
-              label="เวลา"
-              type="time"
-              value={bookingForm.time}
-              onChange={(e) => setBookingForm({ ...bookingForm, time: e.target.value })}
-              required
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  เวลาเริ่มต้น <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Clock size={18} />
+                  </div>
+                  <select
+                    value={bookingForm.startTime}
+                    onChange={(e) => setBookingForm({...bookingForm, startTime: e.target.value})}
+                    required
+                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-no-repeat bg-[right_0.75rem_center]"
+                    style={{ backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2Y2E2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==")` }}
+                  >
+                    <option value="">เลือกเวลา</option>
+                    {TIME_SLOTS.map(time => (
+                      <option key={`start-${time}`} value={time}>
+                        {formatTime(time)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  เวลาสิ้นสุด <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                    <Clock size={18} />
+                  </div>
+                  <select
+                    value={bookingForm.endTime}
+                    onChange={(e) => setBookingForm({...bookingForm, endTime: e.target.value})}
+                    required
+                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-no-repeat bg-[right_0.75rem_center]"
+                    style={{ backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI4IDI4IiBmaWxsPSJub25lIiBzdHJva2U9IiM2Y2E2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==")` }}
+                  >
+                    <option value="">เลือกเวลา</option>
+                    {TIME_SLOTS.filter(time => 
+                      !bookingForm.startTime || parseInt(time) > parseInt(bookingForm.startTime)
+                    ).map(time => (
+                      <option key={`end-${time}`} value={time}>
+                        {formatTime(time)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
             <div className="md:col-span-2">
               <Button
@@ -869,41 +1070,42 @@ const App: React.FC = () => {
   const DashboardPage = () => {
     const exportToExcel = () => {
       setIsLoading(true);
-
-      // Create Excel content
-      let csvContent = "data:text/csv;charset=utf-8,";
-
+      
+      // Create Excel content with UTF-8 BOM for proper encoding
+      const BOM = "\uFEFF";
+      let csvContent = "data:text/csv;charset=utf-8," + BOM;
+      
       // Attendance data
       csvContent += "บันทึกการเข้าโรงเรียน\n";
       csvContent += "ID,ชื่อ-นามสกุล,วันที่,สถานะ,เหตุผล,เวลาบันทึก\n";
       attendanceRecords.forEach(record => {
-        csvContent += `${record.id},${record.fullName},${record.date},${record.status},${record.reason || ''},${record.timestamp}\n`;
+        csvContent += `${record.id},${record.fullName},${record.date},${record.status},"${record.reason || ''}",${record.timestamp}\n`;
       });
-
+      
       // Leave requests
       csvContent += "\nการลางาน\n";
-      csvContent += "ID,ชื่อ-นามสกุล,วันที่เริ่มลา,วันที่สิ้นสุด,เหตุผล,สถานะ,เวลาบันทึก\n";
+      csvContent += "ID,ชื่อ-นามสกุล,ประเภทการลา,วันที่เริ่มลา,วันที่สิ้นสุด,เหตุผล,สถานะ,เวลาบันทึก\n";
       leaveRequests.forEach(leave => {
-        csvContent += `${leave.id},${leave.fullName},${leave.leaveDate},${leave.endDate || ''},${leave.reason},${leave.status},${leave.timestamp}\n`;
+        csvContent += `${leave.id},${leave.fullName},${leave.type},${leave.leaveDate},${leave.endDate || ''},"${leave.reason}",${leave.status},${leave.timestamp}\n`;
       });
-
+      
       // Room bookings
       csvContent += "\nการจองห้อง\n";
-      csvContent += "ID,ชื่อ-นามสกุล,ห้อง,วันที่,เวลา,วัตถุประสงค์,เวลาบันทึก\n";
+      csvContent += "ID,ชื่อ-นามสกุล,ห้อง,วันที่,เวลาเริ่มต้น,เวลาสิ้นสุด,วัตถุประสงค์,เวลาบันทึก\n";
       roomBookings.forEach(booking => {
-        csvContent += `${booking.id},${booking.fullName},${booking.room},${booking.date},${booking.time},${booking.purpose},${booking.timestamp}\n`;
+        csvContent += `${booking.id},${booking.fullName},${booking.room},${booking.date},${booking.startTime},${booking.endTime},"${booking.purpose}",${booking.timestamp}\n`;
       });
-
+      
       // Create download link
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `school-data-${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute("download", `school-data-${new Date().toISOString().slice(0,10)}.csv`);
       document.body.appendChild(link);
-
+      
       link.click();
       document.body.removeChild(link);
-
+      
       setIsLoading(false);
       setSuccessMessage('ส่งออกข้อมูลสำเร็จแล้ว!');
       setShowSuccessModal(true);
@@ -913,11 +1115,51 @@ const App: React.FC = () => {
       const today = new Date().toISOString().split('T')[0];
       const todayRecords = attendanceRecords.filter(record => record.date === today);
 
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = yesterday.toISOString().split('T')[0];
+      const yesterdayRecords = attendanceRecords.filter(record => record.date === yesterdayDate);
+
+      const getCount = (records: AttendanceRecord[], status: string) => 
+        records.filter(r => r.status === status).length;
+
+      const calculateTrend = (todayCount: number, yesterdayCount: number) => {
+        if (yesterdayCount === 0) {
+          return todayCount === 0 ? 0 : 100;
+        }
+        return Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100);
+      };
+
+      const presentToday = getCount(todayRecords, 'มา');
+      const presentYesterday = getCount(yesterdayRecords, 'มา');
+      const absentToday = getCount(todayRecords, 'ขาด');
+      const absentYesterday = getCount(yesterdayRecords, 'ขาด');
+      const lateToday = getCount(todayRecords, 'สาย');
+      const lateYesterday = getCount(yesterdayRecords, 'สาย');
+      const leaveToday = getCount(todayRecords, 'ลา');
+      const leaveYesterday = getCount(yesterdayRecords, 'ลา');
+
       return {
-        present: todayRecords.filter(r => r.status === 'มา').length,
-        absent: todayRecords.filter(r => r.status === 'ขาด').length,
-        late: todayRecords.filter(r => r.status === 'สาย').length,
-        leave: todayRecords.filter(r => r.status === 'ลา').length
+        present: {
+          today: presentToday,
+          yesterday: presentYesterday,
+          trend: calculateTrend(presentToday, presentYesterday)
+        },
+        absent: {
+          today: absentToday,
+          yesterday: absentYesterday,
+          trend: calculateTrend(absentToday, absentYesterday)
+        },
+        late: {
+          today: lateToday,
+          yesterday: lateYesterday,
+          trend: calculateTrend(lateToday, lateYesterday)
+        },
+        leave: {
+          today: leaveToday,
+          yesterday: leaveYesterday,
+          trend: calculateTrend(leaveToday, leaveYesterday)
+        }
       };
     };
 
@@ -954,50 +1196,86 @@ const App: React.FC = () => {
 
         {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <StatsCard
-            title="มาโรงเรียนวันนี้"
-            value={summary.present}
-            icon={<UserCheck className="text-green-600" size={24} />}
+          <StatsCard 
+            title="มาโรงเรียนวันนี้" 
+            value={summary.present.today} 
+            icon={<UserCheck className="text-green-600" size={24} />} 
             color="bg-green-100"
+            trend={summary.present.trend}
           />
-          <StatsCard
-            title="ขาดโรงเรียนวันนี้"
-            value={summary.absent}
-            icon={<XCircle className="text-red-600" size={24} />}
+          <StatsCard 
+            title="ขาดโรงเรียนวันนี้" 
+            value={summary.absent.today} 
+            icon={<XCircle className="text-red-600" size={24} />} 
             color="bg-red-100"
+            trend={summary.absent.trend}
           />
-          <StatsCard
-            title="สายวันนี้"
-            value={summary.late}
-            icon={<AlertCircle className="text-yellow-600" size={24} />}
+          <StatsCard 
+            title="สายวันนี้" 
+            value={summary.late.today} 
+            icon={<AlertCircle className="text-yellow-600" size={24} />} 
             color="bg-yellow-100"
+            trend={summary.late.trend}
           />
-          <StatsCard
-            title="ลาวันนี้"
-            value={summary.leave}
-            icon={<Calendar className="text-blue-600" size={24} />}
+          <StatsCard 
+            title="ลาวันนี้" 
+            value={summary.leave.today} 
+            icon={<Calendar className="text-blue-600" size={24} />} 
             color="bg-blue-100"
+            trend={summary.leave.trend}
           />
         </div>
 
         {/* Date Range Filter */}
-        <Card className="mb-6 p-5 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <Card className="mb-6 p-5 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">กรองข้อมูล</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Input
-              label="วันที่เริ่มต้น"
-              type="date"
-              value={adminFilters.startDate}
-              onChange={(e) => setAdminFilters({ ...adminFilters, startDate: e.target.value })}
-              className="mb-0"
-            />
-            <Input
-              label="วันที่สิ้นสุด"
-              type="date"
-              value={adminFilters.endDate}
-              onChange={(e) => setAdminFilters({ ...adminFilters, endDate: e.target.value })}
-              className="mb-0"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                วันที่เริ่มต้น
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <Calendar size={18} />
+                </div>
+                <DatePicker
+                  selected={adminFilters.startDate ? new Date(adminFilters.startDate) : null}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      setAdminFilters({...adminFilters, startDate: date.toISOString().split('T')[0]});
+                    }
+                  }}
+                  dateFormat="dd/MM/yyyy"
+                  locale={th}
+                  className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholderText="เลือกวันที่"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                วันที่สิ้นสุด
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <Calendar size={18} />
+                </div>
+                <DatePicker
+                  selected={adminFilters.endDate ? new Date(adminFilters.endDate) : null}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      setAdminFilters({...adminFilters, endDate: date.toISOString().split('T')[0]});
+                    }
+                  }}
+                  dateFormat="dd/MM/yyyy"
+                  locale={th}
+                  className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholderText="เลือกวันที่"
+                />
+              </div>
+            </div>
+
             <div className="flex items-end gap-2 md:col-span-2">
               <Button
                 onClick={() => setAdminFilters({ startDate: '', endDate: '' })}
@@ -1027,7 +1305,10 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('attendance')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">การเข้าโรงเรียนล่าสุด</h3>
+              <div className="flex items-center gap-2">
+                <UserCheck size={20} className="text-indigo-600" />
+                <h3 className="text-lg font-semibold text-gray-800">การเข้าโรงเรียนล่าสุด</h3>
+              </div>
               {activeSection === 'attendance' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1065,7 +1346,10 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('bookings')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">การจองห้องล่าสุด</h3>
+              <div className="flex items-center gap-2">
+                <Bookmark size={20} className="text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-800">การจองห้องล่าสุด</h3>
+              </div>
               {activeSection === 'bookings' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1076,9 +1360,9 @@ const App: React.FC = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้อง</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่และเวลา</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จองโดย</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วัตถุประสงค์</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1086,10 +1370,12 @@ const App: React.FC = () => {
                         <tr key={booking.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{booking.room}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(booking.date)} เวลา {formatTime(booking.time)}
+                            {formatDate(booking.date)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{booking.fullName}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{booking.purpose}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1105,7 +1391,10 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('leaves')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">คำขอลาที่รอดำเนินการ</h3>
+              <div className="flex items-center gap-2">
+                <CalendarCheck size={20} className="text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-800">คำขอลาที่รอดำเนินการ</h3>
+              </div>
               {activeSection === 'leaves' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1114,44 +1403,61 @@ const App: React.FC = () => {
                 <div className="space-y-3">
                   {leaveRequests
                     .filter(leave => leave.status === 'รอดำเนินการ')
-                    .map((leave) => (
-                      <div key={leave.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                        <div>
-                          <p className="font-medium text-gray-900">{leave.fullName}</p>
-                          <p className="text-sm text-gray-600">
-                            {formatDate(leave.leaveDate)}
-                            {leave.endDate && ` ถึง ${formatDate(leave.endDate)}`}
-                            {leave.reason && ` • ${leave.reason}`}
-                          </p>
+                    .map((leave) => {
+                      const leaveType = LEAVE_TYPES.find(type => type.value === leave.type);
+                      return (
+                        <div key={leave.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                          <div>
+                            <p className="font-medium text-gray-900">{leave.fullName}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {leaveType && (
+                                <span className={`px-2 py-1 rounded-full text-xs ${leaveType.color}`}>
+                                  {leaveType.label}
+                                </span>
+                              )}
+                              <span className="text-sm text-gray-600">
+                                {formatDate(leave.leaveDate)}
+                                {leave.endDate && ` - ${formatDate(leave.endDate)}`}
+                              </span>
+                            </div>
+                            {leave.reason && (
+                              <p className="text-sm text-gray-600 mt-2">{leave.reason}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => {
+                                setLeaveRequests(prev => prev.map(l =>
+                                  l.id === leave.id ? { ...l, status: 'อนุมัติ' } : l
+                                ));
+                              }}
+                              variant="success"
+                              className="text-xs px-3 py-1.5"
+                            >
+                              อนุมัติ
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setLeaveRequests(prev => prev.map(l =>
+                                  l.id === leave.id ? { ...l, status: 'ปฏิเสธ' } : l
+                                ));
+                              }}
+                              variant="danger"
+                              className="text-xs px-3 py-1.5"
+                            >
+                              ปฏิเสธ
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => {
-                              setLeaveRequests(prev => prev.map(l =>
-                                l.id === leave.id ? { ...l, status: 'อนุมัติ' } : l
-                              ));
-                            }}
-                            variant="success"
-                            className="text-xs px-3 py-1.5"
-                          >
-                            อนุมัติ
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              setLeaveRequests(prev => prev.map(l =>
-                                l.id === leave.id ? { ...l, status: 'ปฏิเสธ' } : l
-                              ));
-                            }}
-                            variant="danger"
-                            className="text-xs px-3 py-1.5"
-                          >
-                            ปฏิเสธ
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   {leaveRequests.filter(leave => leave.status === 'รอดำเนินการ').length === 0 && (
-                    <p className="text-gray-500 text-center py-4">ไม่มีคำขอลาที่รอดำเนินการ</p>
+                    <div className="text-center py-6">
+                      <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="text-gray-400" size={24} />
+                      </div>
+                      <p className="text-gray-500">ไม่มีคำขอลาที่รอดำเนินการ</p>
+                    </div>
                   )}
                 </div>
               </div>
