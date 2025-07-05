@@ -183,6 +183,12 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
+// Time conversion helper
+const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
 // Main App Component
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -721,10 +727,10 @@ const App: React.FC = () => {
         return;
       }
 
-      const startHour = parseInt(values.startTime.split(':')[0]);
-      const endHour = parseInt(values.endTime.split(':')[0]);
+      const startMinutes = timeToMinutes(values.startTime);
+      const endMinutes = timeToMinutes(values.endTime);
 
-      if (endHour <= startHour) {
+      if (endMinutes <= startMinutes) {
         setAvailabilityCheck({
           available: false,
           message: 'เวลาสิ้นสุดต้องหลังเวลาเริ่มต้น'
@@ -737,10 +743,8 @@ const App: React.FC = () => {
         booking.room === values.room &&
         booking.date === dateStr &&
         (
-          (parseInt(values.startTime) >= parseInt(booking.startTime) &&
-            parseInt(values.startTime) < parseInt(booking.endTime)) ||
-          (parseInt(values.endTime) > parseInt(booking.startTime) &&
-            parseInt(values.endTime) <= parseInt(booking.endTime))
+          startMinutes < timeToMinutes(booking.endTime) &&
+          endMinutes > timeToMinutes(booking.startTime)
         )
       );
 
@@ -754,16 +758,16 @@ const App: React.FC = () => {
       setIsSubmitting(true);
 
       const dateStr = values.date.format('YYYY-MM-DD');
+      const startMinutes = timeToMinutes(values.startTime);
+      const endMinutes = timeToMinutes(values.endTime);
 
       // Check availability again before submitting
       const isBooked = roomBookings.some(booking =>
         booking.room === values.room &&
         booking.date === dateStr &&
         (
-          (parseInt(values.startTime) >= parseInt(booking.startTime) &&
-            parseInt(values.startTime) < parseInt(booking.endTime)) ||
-          (parseInt(values.endTime) > parseInt(booking.startTime) &&
-            parseInt(values.endTime) <= parseInt(booking.endTime))
+          startMinutes < timeToMinutes(booking.endTime) &&
+          endMinutes > timeToMinutes(booking.startTime)
         )
       );
 
@@ -878,7 +882,7 @@ const App: React.FC = () => {
                     size="large"
                     options={TIME_SLOTS.filter(time => {
                       const startTime = bookingForm.getFieldValue('startTime');
-                      return !startTime || parseInt(time) > parseInt(startTime);
+                      return !startTime || timeToMinutes(time) > timeToMinutes(startTime);
                     }).map(time => ({
                       value: time,
                       label: formatTime(time)
@@ -936,8 +940,6 @@ const App: React.FC = () => {
   };
 
   // Admin Dashboard
-  // ... (โค้ดก่อนหน้าเหมือนเดิม)
-
   const DashboardPage = () => {
     const [attendanceFilter, setAttendanceFilter] = useState<any>(null);
     const [leaveFilter, setLeaveFilter] = useState<any>(null);
@@ -1066,25 +1068,31 @@ const App: React.FC = () => {
       }, 800);
     };
 
-    // Filtered data
+    // Filtered data with date range inclusion
     const filteredAttendance = attendanceFilter
       ? attendanceRecords.filter(record => {
-        const recordDate = dayjs(record.date);
-        return recordDate.isAfter(attendanceFilter[0]) && recordDate.isBefore(attendanceFilter[1]);
+        const recordDate = record.date;
+        const startDate = attendanceFilter[0].format('YYYY-MM-DD');
+        const endDate = attendanceFilter[1].format('YYYY-MM-DD');
+        return recordDate >= startDate && recordDate <= endDate;
       })
       : attendanceRecords;
 
     const filteredLeaves = leaveFilter
       ? leaveRequests.filter(leave => {
-        const leaveDate = dayjs(leave.leaveDate);
-        return leaveDate.isAfter(leaveFilter[0]) && leaveDate.isBefore(leaveFilter[1]);
+        const leaveDate = leave.leaveDate;
+        const startDate = leaveFilter[0].format('YYYY-MM-DD');
+        const endDate = leaveFilter[1].format('YYYY-MM-DD');
+        return leaveDate >= startDate && leaveDate <= endDate;
       })
       : leaveRequests;
 
     const filteredBookings = bookingFilter
       ? roomBookings.filter(booking => {
-        const bookingDate = dayjs(booking.date);
-        return bookingDate.isAfter(bookingFilter[0]) && bookingDate.isBefore(bookingFilter[1]);
+        const bookingDate = booking.date;
+        const startDate = bookingFilter[0].format('YYYY-MM-DD');
+        const endDate = bookingFilter[1].format('YYYY-MM-DD');
+        return bookingDate >= startDate && bookingDate <= endDate;
       })
       : roomBookings;
 
@@ -1228,33 +1236,42 @@ const App: React.FC = () => {
       </div>
     );
 
-    // Filter Component
+    // Filter Component with predefined ranges
     const FilterComponent: React.FC<{
       filter: any;
       setFilter: React.Dispatch<React.SetStateAction<any>>;
       title: string
-    }> = ({ filter, setFilter, title }) => (
-      <div className="p-4 w-80">
-        <div className="font-semibold text-gray-900 mb-3">{title}</div>
-        <div className="space-y-3">
-          <RangePicker
-            locale={locale}
-            format="DD/MM/YYYY"
-            value={filter}
-            onChange={setFilter}
-            className="w-full"
-            placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
-          />
-          <Button
-            onClick={() => setFilter(null)}
-            className="w-full"
-            icon={<SyncOutlined />}
-          >
-            ล้างตัวกรอง
-          </Button>
+    }> = ({ filter, setFilter, title }) => {
+      const ranges: Record<string, [dayjs.Dayjs, dayjs.Dayjs]> = {
+        'วันนี้': [dayjs(), dayjs()],
+        'สัปดาห์นี้': [dayjs().startOf('week'), dayjs().endOf('week')],
+        'เดือนนี้': [dayjs().startOf('month'), dayjs().endOf('month')],
+      };
+
+      return (
+        <div className="p-4 w-80">
+          <div className="font-semibold text-gray-900 mb-3">{title}</div>
+          <div className="space-y-3">
+            <RangePicker
+              locale={locale}
+              format="DD/MM/YYYY"
+              value={filter}
+              onChange={setFilter}
+              className="w-full"
+              placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
+              ranges={ranges}
+            />
+            <Button
+              onClick={() => setFilter(null)}
+              className="w-full"
+              icon={<SyncOutlined />}
+            >
+              ล้างตัวกรอง
+            </Button>
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
 
     // Table columns
     const attendanceColumns = [
