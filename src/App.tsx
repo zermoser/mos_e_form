@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Calendar,
   Clock,
@@ -19,7 +19,7 @@ import {
   CalendarCheck,
   Bookmark,
   BarChart2,
-  Loader
+  Loader,
 } from 'lucide-react';
 
 // Types
@@ -27,7 +27,7 @@ interface AttendanceRecord {
   id: string;
   fullName: string;
   date: string;
-  status: 'Present' | 'Absent' | 'Late' | 'Leave';
+  status: 'มา' | 'ขาด' | 'สาย' | 'ลา';
   reason?: string;
   timestamp: string;
 }
@@ -39,7 +39,7 @@ interface LeaveRequest {
   endDate?: string;
   reason: string;
   timestamp: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: 'รอดำเนินการ' | 'อนุมัติ' | 'ปฏิเสธ';
 }
 
 interface RoomBooking {
@@ -59,26 +59,26 @@ interface User {
 
 // Mock data storage
 const MOCK_ATTENDANCE: AttendanceRecord[] = [
-  { id: '1', fullName: 'John Doe', date: '2025-07-15', status: 'Present', timestamp: '2025-07-15T09:00:00Z' },
-  { id: '2', fullName: 'Jane Smith', date: '2025-07-15', status: 'Late', timestamp: '2025-07-15T09:15:00Z' },
-  { id: '3', fullName: 'Bob Johnson', date: '2025-07-15', status: 'Leave', reason: 'Medical appointment', timestamp: '2025-07-15T08:30:00Z' }
+  { id: '1', fullName: 'สมชาย ใจดี', date: '2025-07-15', status: 'มา', timestamp: '2025-07-15T09:00:00Z' },
+  { id: '2', fullName: 'สุนีย์ สุขใจ', date: '2025-07-15', status: 'สาย', timestamp: '2025-07-15T09:15:00Z' },
+  { id: '3', fullName: 'ประเสริฐ ตั้งใจเรียน', date: '2025-07-15', status: 'ลา', reason: 'พบแพทย์', timestamp: '2025-07-15T08:30:00Z' }
 ];
 
 const MOCK_LEAVES: LeaveRequest[] = [
-  { id: '1', fullName: 'Alice Brown', leaveDate: '2025-07-20', reason: 'Family emergency', timestamp: '2025-07-14T10:00:00Z', status: 'Pending' },
-  { id: '2', fullName: 'Charlie Wilson', leaveDate: '2025-07-18', reason: 'Medical appointment', timestamp: '2025-07-13T14:30:00Z', status: 'Approved' }
+  { id: '1', fullName: 'นภา สวยงาม', leaveDate: '2025-07-20', reason: 'เหตุฉุกเฉินในครอบครัว', timestamp: '2025-07-14T10:00:00Z', status: 'รอดำเนินการ' },
+  { id: '2', fullName: 'วีระชัย กล้าหาญ', leaveDate: '2025-07-18', reason: 'พบแพทย์', timestamp: '2025-07-13T14:30:00Z', status: 'อนุมัติ' }
 ];
 
 const MOCK_BOOKINGS: RoomBooking[] = [
-  { id: '1', fullName: 'David Lee', room: 'Room A', date: '2025-07-16', time: '14:00', purpose: 'Team meeting', timestamp: '2025-07-15T11:00:00Z' },
-  { id: '2', fullName: 'Emma Davis', room: 'Room B', date: '2025-07-17', time: '10:00', purpose: 'Presentation', timestamp: '2025-07-15T12:00:00Z' }
+  { id: '1', fullName: 'ธนวัฒน์ พัฒนา', room: 'ห้อง A', date: '2025-07-16', time: '14:00', purpose: 'ประชุมทีม', timestamp: '2025-07-15T11:00:00Z' },
+  { id: '2', fullName: 'อรุณี สว่างใจ', room: 'ห้อง B', date: '2025-07-17', time: '10:00', purpose: 'นำเสนองาน', timestamp: '2025-07-15T12:00:00Z' }
 ];
 
-const ROOMS = ['Room A', 'Room B', 'Room C', 'Conference Room', 'Lab 1', 'Lab 2'];
+const ROOMS = ['ห้อง A', 'ห้อง B', 'ห้อง C', 'ห้องประชุมใหญ่', 'ห้องปฏิบัติการ 1', 'ห้องปฏิบัติการ 2'];
 
 // Utility functions
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('en-US', {
+  return new Date(date).toLocaleDateString('th-TH', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -88,7 +88,7 @@ const formatDate = (date: string) => {
 const formatTime = (time: string) => {
   const [hours, minutes] = time.split(':');
   const hour = parseInt(hours, 10);
-  return `${hour > 12 ? hour - 12 : hour}:${minutes} ${hour >= 12 ? 'PM' : 'AM'}`;
+  return `${hour}:${minutes} น.`;
 };
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -98,16 +98,18 @@ const Button: React.FC<{
   children: React.ReactNode;
   onClick?: () => void;
   type?: 'button' | 'submit';
-  variant?: 'primary' | 'secondary' | 'danger' | 'success';
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline';
   disabled?: boolean;
   className?: string;
-}> = ({ children, onClick, type = 'button', variant = 'primary', disabled = false, className = '' }) => {
+  icon?: React.ReactNode;
+}> = ({ children, onClick, type = 'button', variant = 'primary', disabled = false, className = '', icon }) => {
   const baseClasses = 'px-4 py-2.5 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 justify-center text-sm';
   const variants = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-300 shadow-sm hover:shadow-md',
+    primary: 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 shadow-sm hover:shadow-md',
     secondary: 'bg-white text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 border border-gray-300 shadow-sm hover:shadow-md',
-    danger: 'bg-red-500 text-white hover:bg-red-600 disabled:bg-red-300 shadow-sm hover:shadow-md',
-    success: 'bg-green-600 text-white hover:bg-green-700 disabled:bg-green-300 shadow-sm hover:shadow-md'
+    danger: 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 disabled:opacity-50 shadow-sm hover:shadow-md',
+    success: 'bg-gradient-to-r from-green-600 to-teal-500 text-white hover:from-green-700 hover:to-teal-600 disabled:opacity-50 shadow-sm hover:shadow-md',
+    outline: 'bg-transparent border border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50'
   };
 
   return (
@@ -117,6 +119,7 @@ const Button: React.FC<{
       disabled={disabled}
       className={`${baseClasses} ${variants[variant]} ${className}`}
     >
+      {icon && <span>{icon}</span>}
       {children}
     </button>
   );
@@ -167,7 +170,7 @@ const Select: React.FC<{
         required={required}
         className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiYjMzg7NmNhNjQiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cG9seWxpbmUgcG9pbnRzPSI2IDkgMTIgMTUgMTggOSI+PC9wb2x5bGluZT48L3N2Zz4=')] bg-no-repeat bg-[right_0.75rem_center]"
       >
-        <option value="">Select {label}</option>
+        <option value="">เลือก {label}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -208,7 +211,7 @@ const Card: React.FC<{
   className?: string;
 }> = ({ children, className = '' }) => {
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-5 ${className}`}>
+    <div className={`bg-white rounded-2xl shadow-md border border-gray-200 p-6 ${className}`}>
       {children}
     </div>
   );
@@ -240,13 +243,13 @@ const Modal: React.FC<{
 };
 
 const statusStyles: Record<string, string> = {
-  Present: 'bg-green-100 text-green-800',
-  Late: 'bg-yellow-100 text-yellow-800',
-  Absent: 'bg-red-100 text-red-800',
-  Leave: 'bg-blue-100 text-blue-800',
-  Pending: 'bg-gray-100 text-gray-800',
-  Approved: 'bg-green-100 text-green-800',
-  Rejected: 'bg-red-100 text-red-800'
+  'มา': 'bg-green-100 text-green-800',
+  'สาย': 'bg-yellow-100 text-yellow-800',
+  'ขาด': 'bg-red-100 text-red-800',
+  'ลา': 'bg-blue-100 text-blue-800',
+  'รอดำเนินการ': 'bg-gray-100 text-gray-800',
+  'อนุมัติ': 'bg-green-100 text-green-800',
+  'ปฏิเสธ': 'bg-red-100 text-red-800'
 };
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -323,7 +326,7 @@ const App: React.FC = () => {
           setCurrentUser({ username, role: 'user' });
           setCurrentPage('attendance');
         } else {
-          setError('Invalid credentials. Try: admin/admin123 or user/user123');
+          setError('ข้อมูลเข้าสู่ระบบไม่ถูกต้อง');
         }
         setIsLoggingIn(false);
       }, 800);
@@ -336,26 +339,26 @@ const App: React.FC = () => {
             <div className="bg-white/20 backdrop-blur-sm w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="text-white" size={28} />
             </div>
-            <h1 className="text-2xl font-bold mb-1">School Management</h1>
-            <p className="opacity-90">Attendance & Room Booking System</p>
+            <h1 className="text-2xl font-bold mb-1">ระบบจัดการโรงเรียน</h1>
+            <p className="opacity-90">ระบบบันทึกการเข้าเรียนและการจองห้อง</p>
           </div>
 
           <div className="p-6">
             <form onSubmit={handleLogin}>
               <Input
-                label="Username"
+                label="ชื่อผู้ใช้"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="Enter your username"
+                placeholder="กรอกชื่อผู้ใช้ของคุณ"
               />
               <Input
-                label="Password"
+                label="รหัสผ่าน"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="Enter your password"
+                placeholder="กรอกรหัสผ่านของคุณ"
               />
               {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
@@ -370,26 +373,26 @@ const App: React.FC = () => {
                 {isLoggingIn ? (
                   <span className="flex items-center justify-center">
                     <Loader className="animate-spin mr-2" size={16} />
-                    Signing in...
+                    กำลังเข้าสู่ระบบ...
                   </span>
                 ) : (
                   <>
                     <User size={16} />
-                    Login
+                    เข้าสู่ระบบ
                   </>
                 )}
               </Button>
             </form>
 
             <div className="mt-6 text-sm text-gray-600 border-t pt-4">
-              <p className="font-medium text-center mb-1">Demo Credentials:</p>
+              <p className="font-medium text-center mb-1">ข้อมูลทดสอบ:</p>
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="bg-indigo-50 p-2 rounded-lg">
-                  <p className="font-medium">Admin</p>
+                  <p className="font-medium">ผู้ดูแลระบบ</p>
                   <p>admin / admin123</p>
                 </div>
                 <div className="bg-indigo-50 p-2 rounded-lg">
-                  <p className="font-medium">User</p>
+                  <p className="font-medium">ผู้ใช้งาน</p>
                   <p>user / user123</p>
                 </div>
               </div>
@@ -403,39 +406,41 @@ const App: React.FC = () => {
   // Navigation Component
   const Navigation = () => {
     const navItems = [
-      { id: 'attendance', label: 'Attendance', icon: UserCheck },
-      { id: 'leave', label: 'Leave Request', icon: CalendarCheck },
-      { id: 'booking', label: 'Room Booking', icon: Bookmark },
-      ...(currentUser?.role === 'admin' ? [{ id: 'dashboard', label: 'Dashboard', icon: BarChart2 }] : [])
+      { id: 'attendance', label: 'บันทึกการเข้าเรียน', icon: UserCheck },
+      { id: 'leave', label: 'การลางาน', icon: CalendarCheck },
+      { id: 'booking', label: 'การจองห้อง', icon: Bookmark },
+      ...(currentUser?.role === 'admin' ? [{ id: 'dashboard', label: 'แดชบอร์ด', icon: BarChart2 }] : [])
     ];
 
     return (
       <>
         {/* Mobile menu button */}
-        <div className="lg:hidden fixed top-4 left-4 z-50">
-          <Button
-            onClick={() => setSidebarOpen(true)}
-            variant="secondary"
-            className="p-2 shadow"
-          >
-            <Menu size={20} />
-          </Button>
-        </div>
+        {!sidebarOpen && (
+          <div className="lg:hidden fixed top-4 left-4 z-50">
+            <Button
+              onClick={() => setSidebarOpen(true)}
+              variant="secondary"
+              className="p-2 shadow"
+            >
+              <Menu size={20} />
+            </Button>
+          </div>
+        )}
 
         {/* Sidebar */}
-        <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+        <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-indigo-700 to-purple-800 shadow-lg transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="p-5 text-white">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">School System</h2>
+              <h2 className="text-lg font-semibold">ระบบจัดการโรงเรียน</h2>
               <Button
                 onClick={() => setSidebarOpen(false)}
-                variant="secondary"
-                className="p-1 lg:hidden bg-white/20 hover:bg-white/30"
+                variant="outline"
+                className="p-1 lg:hidden border-white text-white"
               >
-                <X size={16} className="text-white" />
+                <X size={16} />
               </Button>
             </div>
-            <p className="text-sm opacity-90 mt-1">Welcome, {currentUser?.username}</p>
+            <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.username}</p>
           </div>
 
           <nav className="p-4">
@@ -449,8 +454,8 @@ const App: React.FC = () => {
                     setSidebarOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all ${currentPage === item.id
-                    ? 'bg-indigo-100 text-indigo-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-white text-indigo-700 font-medium shadow'
+                    : 'text-indigo-100 hover:bg-indigo-600'
                     }`}
                 >
                   <Icon size={18} />
@@ -466,11 +471,11 @@ const App: React.FC = () => {
                 setCurrentUser(null);
                 setCurrentPage('login');
               }}
-              variant="danger"
-              className="w-full"
+              variant="outline"
+              className="w-full border-white text-white hover:bg-indigo-600"
             >
               <LogOut size={16} />
-              Logout
+              ออกจากระบบ
             </Button>
           </div>
         </div>
@@ -483,6 +488,27 @@ const App: React.FC = () => {
           />
         )}
       </>
+    );
+  };
+
+  // Dashboard Stats Card
+  const StatsCard: React.FC<{
+    title: string;
+    value: number | string;
+    icon: React.ReactNode;
+    color: string;
+    className?: string;
+  }> = ({ title, value, icon, color, className = '' }) => {
+    return (
+      <div className={`bg-white rounded-2xl shadow p-5 flex items-center ${className}`}>
+        <div className={`${color} w-12 h-12 rounded-xl flex items-center justify-center mr-4`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-gray-500 text-sm">{title}</p>
+          <p className="text-2xl font-bold text-gray-800">{value}</p>
+        </div>
+      </div>
     );
   };
 
@@ -513,7 +539,7 @@ const App: React.FC = () => {
           reason: ''
         });
 
-        setSuccessMessage('Attendance recorded successfully!');
+        setSuccessMessage('บันทึกการเข้าเรียนสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsSubmitting(false);
       }, 800);
@@ -522,26 +548,26 @@ const App: React.FC = () => {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-8 text-center">
-          <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-gradient-to-r from-indigo-100 to-purple-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
             <UserCheck className="text-indigo-600" size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Attendance Check-in</h1>
-          <p className="text-gray-600">Record your daily attendance</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">บันทึกการเข้าเรียน</h1>
+          <p className="text-gray-600">บันทึกการเข้าเรียนประจำวันของคุณ</p>
         </div>
 
         <Card className="border border-gray-200">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <Input
-              label="Full Name"
+              label="ชื่อ-นามสกุล"
               value={attendanceForm.fullName}
               onChange={(e) => setAttendanceForm({ ...attendanceForm, fullName: e.target.value })}
               required
-              placeholder="Enter your full name"
+              placeholder="กรอกชื่อ-นามสกุลของคุณ"
               className="md:col-span-2"
             />
 
             <Input
-              label="Date"
+              label="วันที่"
               type="date"
               value={attendanceForm.date}
               onChange={(e) => setAttendanceForm({ ...attendanceForm, date: e.target.value })}
@@ -549,25 +575,25 @@ const App: React.FC = () => {
             />
 
             <Select
-              label="Attendance Status"
+              label="สถานะการเข้าเรียน"
               value={attendanceForm.status}
               onChange={(e) => setAttendanceForm({ ...attendanceForm, status: e.target.value as AttendanceRecord['status'] })}
               options={[
-                { value: 'Present', label: 'Present' },
-                { value: 'Absent', label: 'Absent' },
-                { value: 'Late', label: 'Late' },
-                { value: 'Leave', label: 'Leave' }
+                { value: 'มา', label: 'มา' },
+                { value: 'ขาด', label: 'ขาด' },
+                { value: 'สาย', label: 'สาย' },
+                { value: 'ลา', label: 'ลา' }
               ]}
               required
             />
 
-            {attendanceForm.status === 'Leave' && (
+            {attendanceForm.status === 'ลา' && (
               <TextArea
-                label="Reason for Leave"
+                label="เหตุผลการลา"
                 value={attendanceForm.reason}
                 onChange={(e) => setAttendanceForm({ ...attendanceForm, reason: e.target.value })}
                 required
-                placeholder="Please specify the reason for leave"
+                placeholder="กรุณาระบุเหตุผลการลา"
                 className="md:col-span-2"
               />
             )}
@@ -581,12 +607,12 @@ const App: React.FC = () => {
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
                     <Loader className="animate-spin mr-2" size={16} />
-                    Submitting...
+                    กำลังบันทึก...
                   </span>
                 ) : (
                   <>
                     <CheckCircle size={16} />
-                    Submit Attendance
+                    บันทึกการเข้าเรียน
                   </>
                 )}
               </Button>
@@ -614,7 +640,7 @@ const App: React.FC = () => {
           endDate: leaveForm.endDate || undefined,
           reason: leaveForm.reason,
           timestamp: new Date().toISOString(),
-          status: 'Pending'
+          status: 'รอดำเนินการ'
         };
 
         setLeaveRequests([...leaveRequests, newLeave]);
@@ -625,7 +651,7 @@ const App: React.FC = () => {
           reason: ''
         });
 
-        setSuccessMessage('Leave request submitted successfully!');
+        setSuccessMessage('ส่งคำขอลางานสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsSubmitting(false);
       }, 800);
@@ -634,26 +660,26 @@ const App: React.FC = () => {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-8 text-center">
-          <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-gradient-to-r from-blue-100 to-cyan-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
             <CalendarCheck className="text-blue-600" size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Leave Application</h1>
-          <p className="text-gray-600">Submit your leave request</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">การลางาน</h1>
+          <p className="text-gray-600">ส่งคำขอลางานของคุณ</p>
         </div>
 
         <Card className="border border-gray-200">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <Input
-              label="Full Name"
+              label="ชื่อ-นามสกุล"
               value={leaveForm.fullName}
               onChange={(e) => setLeaveForm({ ...leaveForm, fullName: e.target.value })}
               required
-              placeholder="Enter your full name"
+              placeholder="กรอกชื่อ-นามสกุลของคุณ"
               className="md:col-span-2"
             />
 
             <Input
-              label="Leave Start Date"
+              label="วันที่เริ่มลา"
               type="date"
               value={leaveForm.leaveDate}
               onChange={(e) => setLeaveForm({ ...leaveForm, leaveDate: e.target.value })}
@@ -661,19 +687,19 @@ const App: React.FC = () => {
             />
 
             <Input
-              label="Leave End Date (Optional)"
+              label="วันที่สิ้นสุดการลา (ไม่จำเป็น)"
               type="date"
               value={leaveForm.endDate}
               onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
-              placeholder="Leave empty for single day"
+              placeholder="เว้นว่างไว้สำหรับลาเพียงวันเดียว"
             />
 
             <TextArea
-              label="Reason for Leave"
+              label="เหตุผลการลา"
               value={leaveForm.reason}
               onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
               required
-              placeholder="Please specify the reason for your leave request"
+              placeholder="กรุณาระบุเหตุผลการลาของคุณ"
               className="md:col-span-2"
             />
 
@@ -686,12 +712,12 @@ const App: React.FC = () => {
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
                     <Loader className="animate-spin mr-2" size={16} />
-                    Submitting...
+                    กำลังส่งคำขอ...
                   </span>
                 ) : (
                   <>
                     <FileText size={16} />
-                    Submit Leave Request
+                    ส่งคำขอลา
                   </>
                 )}
               </Button>
@@ -711,7 +737,7 @@ const App: React.FC = () => {
       if (!bookingForm.room || !bookingForm.date || !bookingForm.time) {
         setAvailabilityCheck({
           available: false,
-          message: 'Please select room, date, and time first'
+          message: 'กรุณาเลือกห้อง วันที่ และเวลา'
         });
         return;
       }
@@ -724,7 +750,7 @@ const App: React.FC = () => {
 
       setAvailabilityCheck({
         available: !isBooked,
-        message: isBooked ? 'Room is not available at this time' : 'Room is available!'
+        message: isBooked ? 'ห้องไม่ว่างในช่วงเวลานี้' : 'ห้องว่าง!'
       });
     };
 
@@ -743,7 +769,7 @@ const App: React.FC = () => {
         if (isBooked) {
           setAvailabilityCheck({
             available: false,
-            message: 'Room is already booked at this time!'
+            message: 'ห้องไม่ว่างในช่วงเวลานี้!'
           });
           setIsSubmitting(false);
           return;
@@ -769,7 +795,7 @@ const App: React.FC = () => {
         });
         setAvailabilityCheck(null);
 
-        setSuccessMessage('Room booked successfully!');
+        setSuccessMessage('จองห้องสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsSubmitting(false);
       }, 800);
@@ -778,26 +804,26 @@ const App: React.FC = () => {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-8 text-center">
-          <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-gradient-to-r from-purple-100 to-pink-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Bookmark className="text-purple-600" size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Room Booking</h1>
-          <p className="text-gray-600">Reserve a classroom or meeting room</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">การจองห้อง</h1>
+          <p className="text-gray-600">จองห้องเรียนหรือห้องประชุม</p>
         </div>
 
         <Card className="border border-gray-200">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <Input
-              label="Full Name"
+              label="ชื่อ-นามสกุล"
               value={bookingForm.fullName}
               onChange={(e) => setBookingForm({ ...bookingForm, fullName: e.target.value })}
               required
-              placeholder="Enter your full name"
+              placeholder="กรอกชื่อ-นามสกุลของคุณ"
               className="md:col-span-2"
             />
 
             <Select
-              label="Room"
+              label="ห้อง"
               value={bookingForm.room}
               onChange={(e) => setBookingForm({ ...bookingForm, room: e.target.value })}
               options={ROOMS.map(room => ({ value: room, label: room }))}
@@ -805,7 +831,7 @@ const App: React.FC = () => {
             />
 
             <Input
-              label="Booking Date"
+              label="วันที่จอง"
               type="date"
               value={bookingForm.date}
               onChange={(e) => setBookingForm({ ...bookingForm, date: e.target.value })}
@@ -813,7 +839,7 @@ const App: React.FC = () => {
             />
 
             <Input
-              label="Time"
+              label="เวลา"
               type="time"
               value={bookingForm.time}
               onChange={(e) => setBookingForm({ ...bookingForm, time: e.target.value })}
@@ -828,7 +854,7 @@ const App: React.FC = () => {
                 className="w-full"
               >
                 <Clock size={16} />
-                Check Availability
+                ตรวจสอบความพร้อม
               </Button>
               {availabilityCheck && (
                 <div className={`mt-3 p-3 rounded-xl text-center ${availabilityCheck.available ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
@@ -838,11 +864,11 @@ const App: React.FC = () => {
             </div>
 
             <TextArea
-              label="Purpose"
+              label="วัตถุประสงค์"
               value={bookingForm.purpose}
               onChange={(e) => setBookingForm({ ...bookingForm, purpose: e.target.value })}
               required
-              placeholder="Describe the purpose of the booking"
+              placeholder="อธิบายวัตถุประสงค์ในการจอง"
               className="md:col-span-2"
             />
 
@@ -855,12 +881,12 @@ const App: React.FC = () => {
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
                     <Loader className="animate-spin mr-2" size={16} />
-                    Booking...
+                    กำลังจอง...
                   </span>
                 ) : (
                   <>
                     <MapPin size={16} />
-                    Book Room
+                    จองห้อง
                   </>
                 )}
               </Button>
@@ -877,14 +903,25 @@ const App: React.FC = () => {
       setIsLoading(true);
       // Mock export functionality
       setTimeout(() => {
+        // Create a mock Excel file
         const data = {
           attendance: attendanceRecords,
           leaves: leaveRequests,
           bookings: roomBookings
         };
 
-        console.log('Exporting data:', data);
-        setSuccessMessage('Data exported successfully!');
+        // Create a download link
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'school-data.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setSuccessMessage('ส่งออกข้อมูลสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsLoading(false);
       }, 1200);
@@ -895,10 +932,10 @@ const App: React.FC = () => {
       const todayRecords = attendanceRecords.filter(record => record.date === today);
 
       return {
-        present: todayRecords.filter(r => r.status === 'Present').length,
-        absent: todayRecords.filter(r => r.status === 'Absent').length,
-        late: todayRecords.filter(r => r.status === 'Late').length,
-        leave: todayRecords.filter(r => r.status === 'Leave').length
+        present: todayRecords.filter(r => r.status === 'มา').length,
+        absent: todayRecords.filter(r => r.status === 'ขาด').length,
+        late: todayRecords.filter(r => r.status === 'สาย').length,
+        leave: todayRecords.filter(r => r.status === 'ลา').length
       };
     };
 
@@ -920,41 +957,60 @@ const App: React.FC = () => {
       <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Admin Dashboard</h1>
-            <p className="text-gray-600">Overview of attendance and bookings</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">แดชบอร์ดผู้ดูแล</h1>
+            <p className="text-gray-600">ภาพรวมการเข้าเรียนและการจองห้อง</p>
           </div>
           <Button
             onClick={exportToExcel}
-            variant="secondary"
+            variant="primary"
             disabled={isLoading}
+            icon={<Download size={16} />}
           >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <Loader className="animate-spin mr-2" size={16} />
-                Exporting...
-              </span>
-            ) : (
-              <>
-                <Download size={16} />
-                Export to Excel
-              </>
-            )}
+            {isLoading ? 'กำลังส่งออก...' : 'ส่งออกเป็น Excel'}
           </Button>
         </div>
 
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <StatsCard
+            title="มาเรียนวันนี้"
+            value={summary.present}
+            icon={<UserCheck className="text-green-600" size={24} />}
+            color="bg-green-100"
+          />
+          <StatsCard
+            title="ขาดเรียนวันนี้"
+            value={summary.absent}
+            icon={<XCircle className="text-red-600" size={24} />}
+            color="bg-red-100"
+          />
+          <StatsCard
+            title="สายวันนี้"
+            value={summary.late}
+            icon={<AlertCircle className="text-yellow-600" size={24} />}
+            color="bg-yellow-100"
+          />
+          <StatsCard
+            title="ลาวันนี้"
+            value={summary.leave}
+            icon={<Calendar className="text-blue-600" size={24} />}
+            color="bg-blue-100"
+          />
+        </div>
+
         {/* Date Range Filter */}
-        <Card className="mb-6 p-5">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Filter Data</h3>
+        <Card className="mb-6 p-5 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">กรองข้อมูล</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Input
-              label="Start Date"
+              label="วันที่เริ่มต้น"
               type="date"
               value={adminFilters.startDate}
               onChange={(e) => setAdminFilters({ ...adminFilters, startDate: e.target.value })}
               className="mb-0"
             />
             <Input
-              label="End Date"
+              label="วันที่สิ้นสุด"
               type="date"
               value={adminFilters.endDate}
               onChange={(e) => setAdminFilters({ ...adminFilters, endDate: e.target.value })}
@@ -966,7 +1022,7 @@ const App: React.FC = () => {
                 variant="secondary"
                 className="flex-1"
               >
-                Clear Filters
+                ล้างตัวกรอง
               </Button>
               <Button
                 onClick={() => {
@@ -975,46 +1031,11 @@ const App: React.FC = () => {
                 variant="primary"
                 className="flex-1"
               >
-                Apply Filters
+                ใช้ตัวกรอง
               </Button>
             </div>
           </div>
         </Card>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <Card className="text-center p-5 border-l-4 border-green-500">
-            <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="text-green-600" size={24} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{summary.present}</h3>
-            <p className="text-gray-600 text-sm">Present Today</p>
-          </Card>
-
-          <Card className="text-center p-5 border-l-4 border-red-500">
-            <div className="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-              <XCircle className="text-red-600" size={24} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{summary.absent}</h3>
-            <p className="text-gray-600 text-sm">Absent Today</p>
-          </Card>
-
-          <Card className="text-center p-5 border-l-4 border-yellow-500">
-            <div className="bg-yellow-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-              <AlertCircle className="text-yellow-600" size={24} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{summary.late}</h3>
-            <p className="text-gray-600 text-sm">Late Today</p>
-          </Card>
-
-          <Card className="text-center p-5 border-l-4 border-blue-500">
-            <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Calendar className="text-blue-600" size={24} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{summary.leave}</h3>
-            <p className="text-gray-600 text-sm">On Leave Today</p>
-          </Card>
-        </div>
 
         {/* Collapsible Sections */}
         <div className="space-y-6">
@@ -1024,7 +1045,7 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('attendance')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">Recent Attendance</h3>
+              <h3 className="text-lg font-semibold text-gray-800">การเข้าเรียนล่าสุด</h3>
               {activeSection === 'attendance' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1034,9 +1055,9 @@ const App: React.FC = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อ</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1062,7 +1083,7 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('bookings')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">Room Bookings</h3>
+              <h3 className="text-lg font-semibold text-gray-800">การจองห้อง</h3>
               {activeSection === 'bookings' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1072,9 +1093,9 @@ const App: React.FC = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booked By</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้อง</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่และเวลา</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จองโดย</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1082,7 +1103,7 @@ const App: React.FC = () => {
                         <tr key={booking.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{booking.room}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(booking.date)} at {formatTime(booking.time)}
+                            {formatDate(booking.date)} เวลา {formatTime(booking.time)}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{booking.fullName}</td>
                         </tr>
@@ -1100,7 +1121,7 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('leaves')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">Pending Leave Requests</h3>
+              <h3 className="text-lg font-semibold text-gray-800">คำขอลาที่รอดำเนินการ</h3>
               {activeSection === 'leaves' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1108,14 +1129,14 @@ const App: React.FC = () => {
               <div className="border-t pt-4 px-4 pb-2">
                 <div className="space-y-3">
                   {leaveRequests
-                    .filter(leave => leave.status === 'Pending')
+                    .filter(leave => leave.status === 'รอดำเนินการ')
                     .map((leave) => (
                       <div key={leave.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                         <div>
                           <p className="font-medium text-gray-900">{leave.fullName}</p>
                           <p className="text-sm text-gray-600">
                             {formatDate(leave.leaveDate)}
-                            {leave.endDate && ` to ${formatDate(leave.endDate)}`}
+                            {leave.endDate && ` ถึง ${formatDate(leave.endDate)}`}
                             {leave.reason && ` • ${leave.reason}`}
                           </p>
                         </div>
@@ -1123,30 +1144,30 @@ const App: React.FC = () => {
                           <Button
                             onClick={() => {
                               setLeaveRequests(prev => prev.map(l =>
-                                l.id === leave.id ? { ...l, status: 'Approved' } : l
+                                l.id === leave.id ? { ...l, status: 'อนุมัติ' } : l
                               ));
                             }}
                             variant="success"
                             className="text-xs px-3 py-1.5"
                           >
-                            Approve
+                            อนุมัติ
                           </Button>
                           <Button
                             onClick={() => {
                               setLeaveRequests(prev => prev.map(l =>
-                                l.id === leave.id ? { ...l, status: 'Rejected' } : l
+                                l.id === leave.id ? { ...l, status: 'ปฏิเสธ' } : l
                               ));
                             }}
                             variant="danger"
                             className="text-xs px-3 py-1.5"
                           >
-                            Reject
+                            ปฏิเสธ
                           </Button>
                         </div>
                       </div>
                     ))}
-                  {leaveRequests.filter(leave => leave.status === 'Pending').length === 0 && (
-                    <p className="text-gray-500 text-center py-4">No pending leave requests</p>
+                  {leaveRequests.filter(leave => leave.status === 'รอดำเนินการ').length === 0 && (
+                    <p className="text-gray-500 text-center py-4">ไม่มีคำขอลาที่รอดำเนินการ</p>
                   )}
                 </div>
               </div>
@@ -1162,7 +1183,7 @@ const App: React.FC = () => {
     <Modal
       isOpen={showSuccessModal}
       onClose={() => setShowSuccessModal(false)}
-      title="Success!"
+      title="สำเร็จ!"
     >
       <div className="text-center py-4">
         <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1174,7 +1195,7 @@ const App: React.FC = () => {
             onClick={() => setShowSuccessModal(false)}
             className="w-full"
           >
-            Continue
+            ดำเนินการต่อ
           </Button>
           {currentUser?.role === 'user' && currentPage !== 'dashboard' && (
             <Button
@@ -1185,36 +1206,13 @@ const App: React.FC = () => {
               variant="secondary"
               className="w-full"
             >
-              View Dashboard
+              ดูแดชบอร์ด
             </Button>
           )}
         </div>
       </div>
     </Modal>
   );
-
-  // Google Sheets Integration Functions (Mock)
-  const syncWithGoogleSheets = async (data: any, sheetName: string) => {
-    // In a real implementation, this would connect to Google Sheets API
-    console.log(`Syncing ${sheetName} data:`, data);
-
-    // Mock API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true });
-      }, 1000);
-    });
-  };
-
-  // Effect to sync data with Google Sheets (mock)
-  useEffect(() => {
-    if (currentUser) {
-      // Mock sync with Google Sheets
-      syncWithGoogleSheets(attendanceRecords, 'Attendance');
-      syncWithGoogleSheets(leaveRequests, 'Leave_Requests');
-      syncWithGoogleSheets(roomBookings, 'Room_Bookings');
-    }
-  }, [attendanceRecords, leaveRequests, roomBookings, currentUser]);
 
   // Main render
   if (!currentUser) {
