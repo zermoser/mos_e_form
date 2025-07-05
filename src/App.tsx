@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Calendar,
   Clock,
@@ -55,6 +55,7 @@ interface RoomBooking {
 interface User {
   username: string;
   role: 'admin' | 'user';
+  displayName: string;
 }
 
 // Mock data storage
@@ -89,6 +90,16 @@ const formatTime = (time: string) => {
   const [hours, minutes] = time.split(':');
   const hour = parseInt(hours, 10);
   return `${hour}:${minutes} น.`;
+};
+
+const getCurrentDateTime = () => {
+  const now = new Date();
+  const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7
+  return {
+    date: thaiTime.toISOString().split('T')[0],
+    time: `${thaiTime.getHours().toString().padStart(2, '0')}:${thaiTime.getMinutes().toString().padStart(2, '0')}`,
+    timestamp: thaiTime.toISOString()
+  };
 };
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -273,14 +284,6 @@ const App: React.FC = () => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(MOCK_LEAVES);
   const [roomBookings, setRoomBookings] = useState<RoomBooking[]>(MOCK_BOOKINGS);
 
-  // Form states
-  const [attendanceForm, setAttendanceForm] = useState({
-    fullName: '',
-    date: new Date().toISOString().split('T')[0],
-    status: '' as AttendanceRecord['status'] | '',
-    reason: ''
-  });
-
   const [leaveForm, setLeaveForm] = useState({
     fullName: '',
     leaveDate: '',
@@ -320,10 +323,18 @@ const App: React.FC = () => {
       setTimeout(() => {
         // Mock authentication
         if (username === 'admin' && password === 'admin123') {
-          setCurrentUser({ username, role: 'admin' });
+          setCurrentUser({
+            username,
+            role: 'admin',
+            displayName: 'ผู้ดูแลระบบ'
+          });
           setCurrentPage('dashboard');
         } else if (username === 'user' && password === 'user123') {
-          setCurrentUser({ username, role: 'user' });
+          setCurrentUser({
+            username,
+            role: 'user',
+            displayName: 'สมชาย ใจดี'
+          });
           setCurrentPage('attendance');
         } else {
           setError('ข้อมูลเข้าสู่ระบบไม่ถูกต้อง');
@@ -340,7 +351,7 @@ const App: React.FC = () => {
               <BookOpen className="text-white" size={28} />
             </div>
             <h1 className="text-2xl font-bold mb-1">ระบบจัดการโรงเรียน</h1>
-            <p className="opacity-90">ระบบบันทึกการเข้าเรียนและการจองห้อง</p>
+            <p className="opacity-90">ระบบบันทึกการเข้าโรงเรียนและการจองห้อง</p>
           </div>
 
           <div className="p-6">
@@ -406,7 +417,7 @@ const App: React.FC = () => {
   // Navigation Component
   const Navigation = () => {
     const navItems = [
-      { id: 'attendance', label: 'บันทึกการเข้าเรียน', icon: UserCheck },
+      { id: 'attendance', label: 'บันทึกการเข้าโรงเรียน', icon: UserCheck },
       { id: 'leave', label: 'การลางาน', icon: CalendarCheck },
       { id: 'booking', label: 'การจองห้อง', icon: Bookmark },
       ...(currentUser?.role === 'admin' ? [{ id: 'dashboard', label: 'แดชบอร์ด', icon: BarChart2 }] : [])
@@ -440,7 +451,7 @@ const App: React.FC = () => {
                 <X size={16} />
               </Button>
             </div>
-            <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.username}</p>
+            <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.displayName}</p>
           </div>
 
           <nav className="p-4">
@@ -512,34 +523,30 @@ const App: React.FC = () => {
     );
   };
 
-  // Attendance Page
+  // Attendance Page - Simplified with single button
   const AttendancePage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [lastCheckIn, setLastCheckIn] = useState<AttendanceRecord | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
+    const handleCheckIn = () => {
       setIsSubmitting(true);
+
+      const { date, timestamp } = getCurrentDateTime();
 
       // Simulate API call
       setTimeout(() => {
         const newRecord: AttendanceRecord = {
           id: generateId(),
-          fullName: attendanceForm.fullName,
-          date: attendanceForm.date,
-          status: attendanceForm.status as AttendanceRecord['status'],
-          reason: attendanceForm.reason || undefined,
-          timestamp: new Date().toISOString()
+          fullName: currentUser?.displayName || 'Unknown',
+          date: date,
+          status: 'มา',
+          timestamp: timestamp
         };
 
         setAttendanceRecords([...attendanceRecords, newRecord]);
-        setAttendanceForm({
-          fullName: '',
-          date: new Date().toISOString().split('T')[0],
-          status: '',
-          reason: ''
-        });
+        setLastCheckIn(newRecord);
 
-        setSuccessMessage('บันทึกการเข้าเรียนสำเร็จแล้ว!');
+        setSuccessMessage('บันทึกการเข้าโรงเรียนสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsSubmitting(false);
       }, 800);
@@ -551,73 +558,44 @@ const App: React.FC = () => {
           <div className="bg-gradient-to-r from-indigo-100 to-purple-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
             <UserCheck className="text-indigo-600" size={28} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">บันทึกการเข้าเรียน</h1>
-          <p className="text-gray-600">บันทึกการเข้าเรียนประจำวันของคุณ</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">บันทึกการเข้าโรงเรียน</h1>
+          <p className="text-gray-600">บันทึกการเข้าโรงเรียนประจำวันของคุณ</p>
         </div>
 
-        <Card className="border border-gray-200">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <Input
-              label="ชื่อ-นามสกุล"
-              value={attendanceForm.fullName}
-              onChange={(e) => setAttendanceForm({ ...attendanceForm, fullName: e.target.value })}
-              required
-              placeholder="กรอกชื่อ-นามสกุลของคุณ"
-              className="md:col-span-2"
-            />
+        <Card className="border border-gray-200 text-center p-10">
+          <div className="mb-6">
+            <p className="text-lg font-medium text-gray-800 mb-1">ข้อมูลผู้ใช้</p>
+            <p className="text-gray-700">{currentUser?.displayName}</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {formatDate(getCurrentDateTime().date)} {getCurrentDateTime().time}
+            </p>
+          </div>
 
-            <Input
-              label="วันที่"
-              type="date"
-              value={attendanceForm.date}
-              onChange={(e) => setAttendanceForm({ ...attendanceForm, date: e.target.value })}
-              required
-            />
-
-            <Select
-              label="สถานะการเข้าเรียน"
-              value={attendanceForm.status}
-              onChange={(e) => setAttendanceForm({ ...attendanceForm, status: e.target.value as AttendanceRecord['status'] })}
-              options={[
-                { value: 'มา', label: 'มา' },
-                { value: 'ขาด', label: 'ขาด' },
-                { value: 'สาย', label: 'สาย' },
-                { value: 'ลา', label: 'ลา' }
-              ]}
-              required
-            />
-
-            {attendanceForm.status === 'ลา' && (
-              <TextArea
-                label="เหตุผลการลา"
-                value={attendanceForm.reason}
-                onChange={(e) => setAttendanceForm({ ...attendanceForm, reason: e.target.value })}
-                required
-                placeholder="กรุณาระบุเหตุผลการลา"
-                className="md:col-span-2"
-              />
+          <Button
+            onClick={handleCheckIn}
+            className="w-full max-w-xs mx-auto"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <span className="flex items-center justify-center">
+                <Loader className="animate-spin mr-2" size={16} />
+                กำลังบันทึก...
+              </span>
+            ) : (
+              <>
+                <CheckCircle size={16} />
+                เช็คอินเข้าโรงเรียน
+              </>
             )}
+          </Button>
 
-            <div className="md:col-span-2 mt-2">
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center">
-                    <Loader className="animate-spin mr-2" size={16} />
-                    กำลังบันทึก...
-                  </span>
-                ) : (
-                  <>
-                    <CheckCircle size={16} />
-                    บันทึกการเข้าเรียน
-                  </>
-                )}
-              </Button>
+          {lastCheckIn && (
+            <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-200">
+              <p className="text-green-700 font-medium">
+                เช็คอินล่าสุดเมื่อ: {formatDate(lastCheckIn.date)} {formatTime(lastCheckIn.timestamp.split('T')[1].substring(0, 5))}
+              </p>
             </div>
-          </form>
+          )}
         </Card>
       </div>
     );
@@ -635,7 +613,7 @@ const App: React.FC = () => {
       setTimeout(() => {
         const newLeave: LeaveRequest = {
           id: generateId(),
-          fullName: leaveForm.fullName,
+          fullName: currentUser?.displayName || '',
           leaveDate: leaveForm.leaveDate,
           endDate: leaveForm.endDate || undefined,
           reason: leaveForm.reason,
@@ -669,14 +647,9 @@ const App: React.FC = () => {
 
         <Card className="border border-gray-200">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <Input
-              label="ชื่อ-นามสกุล"
-              value={leaveForm.fullName}
-              onChange={(e) => setLeaveForm({ ...leaveForm, fullName: e.target.value })}
-              required
-              placeholder="กรอกชื่อ-นามสกุลของคุณ"
-              className="md:col-span-2"
-            />
+            <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl mb-4">
+              <p className="font-medium text-gray-800">ผู้ส่งคำขอ: {currentUser?.displayName}</p>
+            </div>
 
             <Input
               label="วันที่เริ่มลา"
@@ -777,7 +750,7 @@ const App: React.FC = () => {
 
         const newBooking: RoomBooking = {
           id: generateId(),
-          fullName: bookingForm.fullName,
+          fullName: currentUser?.displayName || '',
           room: bookingForm.room,
           date: bookingForm.date,
           time: bookingForm.time,
@@ -813,14 +786,9 @@ const App: React.FC = () => {
 
         <Card className="border border-gray-200">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <Input
-              label="ชื่อ-นามสกุล"
-              value={bookingForm.fullName}
-              onChange={(e) => setBookingForm({ ...bookingForm, fullName: e.target.value })}
-              required
-              placeholder="กรอกชื่อ-นามสกุลของคุณ"
-              className="md:col-span-2"
-            />
+            <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl mb-4">
+              <p className="font-medium text-gray-800">ผู้จอง: {currentUser?.displayName}</p>
+            </div>
 
             <Select
               label="ห้อง"
@@ -901,30 +869,44 @@ const App: React.FC = () => {
   const DashboardPage = () => {
     const exportToExcel = () => {
       setIsLoading(true);
-      // Mock export functionality
-      setTimeout(() => {
-        // Create a mock Excel file
-        const data = {
-          attendance: attendanceRecords,
-          leaves: leaveRequests,
-          bookings: roomBookings
-        };
 
-        // Create a download link
-        const blob = new Blob([JSON.stringify(data)], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'school-data.xlsx';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      // Create Excel content
+      let csvContent = "data:text/csv;charset=utf-8,";
 
-        setSuccessMessage('ส่งออกข้อมูลสำเร็จแล้ว!');
-        setShowSuccessModal(true);
-        setIsLoading(false);
-      }, 1200);
+      // Attendance data
+      csvContent += "บันทึกการเข้าโรงเรียน\n";
+      csvContent += "ID,ชื่อ-นามสกุล,วันที่,สถานะ,เหตุผล,เวลาบันทึก\n";
+      attendanceRecords.forEach(record => {
+        csvContent += `${record.id},${record.fullName},${record.date},${record.status},${record.reason || ''},${record.timestamp}\n`;
+      });
+
+      // Leave requests
+      csvContent += "\nการลางาน\n";
+      csvContent += "ID,ชื่อ-นามสกุล,วันที่เริ่มลา,วันที่สิ้นสุด,เหตุผล,สถานะ,เวลาบันทึก\n";
+      leaveRequests.forEach(leave => {
+        csvContent += `${leave.id},${leave.fullName},${leave.leaveDate},${leave.endDate || ''},${leave.reason},${leave.status},${leave.timestamp}\n`;
+      });
+
+      // Room bookings
+      csvContent += "\nการจองห้อง\n";
+      csvContent += "ID,ชื่อ-นามสกุล,ห้อง,วันที่,เวลา,วัตถุประสงค์,เวลาบันทึก\n";
+      roomBookings.forEach(booking => {
+        csvContent += `${booking.id},${booking.fullName},${booking.room},${booking.date},${booking.time},${booking.purpose},${booking.timestamp}\n`;
+      });
+
+      // Create download link
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `school-data-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+
+      link.click();
+      document.body.removeChild(link);
+
+      setIsLoading(false);
+      setSuccessMessage('ส่งออกข้อมูลสำเร็จแล้ว!');
+      setShowSuccessModal(true);
     };
 
     const getAttendanceSummary = () => {
@@ -958,7 +940,7 @@ const App: React.FC = () => {
         <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">แดชบอร์ดผู้ดูแล</h1>
-            <p className="text-gray-600">ภาพรวมการเข้าเรียนและการจองห้อง</p>
+            <p className="text-gray-600">ภาพรวมการเข้าโรงเรียนและการจองห้อง</p>
           </div>
           <Button
             onClick={exportToExcel}
@@ -973,13 +955,13 @@ const App: React.FC = () => {
         {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <StatsCard
-            title="มาเรียนวันนี้"
+            title="มาโรงเรียนวันนี้"
             value={summary.present}
             icon={<UserCheck className="text-green-600" size={24} />}
             color="bg-green-100"
           />
           <StatsCard
-            title="ขาดเรียนวันนี้"
+            title="ขาดโรงเรียนวันนี้"
             value={summary.absent}
             icon={<XCircle className="text-red-600" size={24} />}
             color="bg-red-100"
@@ -1045,7 +1027,7 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('attendance')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">การเข้าเรียนล่าสุด</h3>
+              <h3 className="text-lg font-semibold text-gray-800">การเข้าโรงเรียนล่าสุด</h3>
               {activeSection === 'attendance' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1083,7 +1065,7 @@ const App: React.FC = () => {
               className="flex justify-between items-center cursor-pointer p-4"
               onClick={() => toggleSection('bookings')}
             >
-              <h3 className="text-lg font-semibold text-gray-800">การจองห้อง</h3>
+              <h3 className="text-lg font-semibold text-gray-800">การจองห้องล่าสุด</h3>
               {activeSection === 'bookings' ? <ChevronUp /> : <ChevronDown />}
             </div>
 
@@ -1096,6 +1078,7 @@ const App: React.FC = () => {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้อง</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่และเวลา</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จองโดย</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วัตถุประสงค์</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -1106,6 +1089,7 @@ const App: React.FC = () => {
                             {formatDate(booking.date)} เวลา {formatTime(booking.time)}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{booking.fullName}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{booking.purpose}</td>
                         </tr>
                       ))}
                     </tbody>
