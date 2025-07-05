@@ -974,13 +974,11 @@ const App: React.FC = () => {
       const leaveYesterday = getCount(yesterdayRecords, 'ลา');
 
       const totalToday = todayRecords.length || 100;
-      const attendanceRate = totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 0;
 
       return {
         present: {
           today: presentToday,
           yesterday: presentYesterday,
-          rate: attendanceRate
         },
         absent: {
           today: absentToday,
@@ -1425,7 +1423,6 @@ const App: React.FC = () => {
             <Badge
               count={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ').length}
               size="small"
-              className="bg-orange-500"
             />
           </div>
         )
@@ -1482,12 +1479,11 @@ const App: React.FC = () => {
           {/* Enhanced Stats Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <EnhancedStatsCard
-              title="อัตราการเข้าโรงเรียน"
-              value={`${summary.present.rate}%`}
-              subtitle={`${summary.present.today}/${summary.total} คน`}
+              title="เข้าโรงเรียน"
+              value={`${summary.present.today}`}
+              subtitle={`คน`}
               icon={<TeamOutlined />}
               color="green"
-              progress={summary.present.rate}
             />
             <EnhancedStatsCard
               title="ขาดโรงเรียน"
