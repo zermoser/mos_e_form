@@ -183,7 +183,7 @@ const App: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
-  
+
   // Data states
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(MOCK_LEAVES);
@@ -342,12 +342,14 @@ const App: React.FC = () => {
           theme="dark"
           className={`!bg-gradient-to-b from-indigo-700 to-purple-800 ${collapsed ? 'collapsed-mobile' : ''}`}
         >
-          <div className="p-5 text-white">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">ระบบจัดการโรงเรียน</h2>
+          {!collapsed &&
+            <div className="p-5 text-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">ระบบจัดการโรงเรียน</h2>
+              </div>
+              <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.displayName}</p>
             </div>
-            <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.displayName}</p>
-          </div>
+          }
 
           <Menu
             theme="dark"
@@ -410,7 +412,7 @@ const App: React.FC = () => {
     icon: React.ReactNode;
     color: string;
     trend?: number;
-  }> = ({ title, value, icon, color, trend }) => {
+  }> = ({ title, value, icon, color }) => {
     return (
       <Card className="h-full shadow-sm border border-gray-200">
         <div className="flex items-center">
@@ -420,11 +422,6 @@ const App: React.FC = () => {
           <div>
             <p className="text-gray-500 text-sm">{title}</p>
             <p className="text-2xl font-bold text-gray-800">{value}</p>
-            {trend !== undefined && (
-              <p className={`text-xs mt-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% จากเมื่อวาน
-              </p>
-            )}
           </div>
         </div>
       </Card>
@@ -913,13 +910,6 @@ const App: React.FC = () => {
       const getCount = (records: AttendanceRecord[], status: string) =>
         records.filter(r => r.status === status).length;
 
-      const calculateTrend = (todayCount: number, yesterdayCount: number) => {
-        if (yesterdayCount === 0) {
-          return todayCount === 0 ? 0 : 100;
-        }
-        return Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100);
-      };
-
       const presentToday = getCount(todayRecords, 'มา');
       const presentYesterday = getCount(yesterdayRecords, 'มา');
       const absentToday = getCount(todayRecords, 'ขาด');
@@ -933,22 +923,18 @@ const App: React.FC = () => {
         present: {
           today: presentToday,
           yesterday: presentYesterday,
-          trend: calculateTrend(presentToday, presentYesterday)
         },
         absent: {
           today: absentToday,
           yesterday: absentYesterday,
-          trend: calculateTrend(absentToday, absentYesterday)
         },
         late: {
           today: lateToday,
           yesterday: lateYesterday,
-          trend: calculateTrend(lateToday, lateYesterday)
         },
         leave: {
           today: leaveToday,
           yesterday: leaveYesterday,
-          trend: calculateTrend(leaveToday, leaveYesterday)
         }
       };
     };
@@ -1194,7 +1180,6 @@ const App: React.FC = () => {
               value={summary.present.today}
               icon={<TeamOutlined className="text-green-600 text-xl" />}
               color="green"
-              trend={summary.present.trend}
             />
           </Col>
           <Col xs={24} sm={12} md={6} className="mb-4">
@@ -1203,7 +1188,6 @@ const App: React.FC = () => {
               value={summary.absent.today}
               icon={<CloseCircleOutlined className="text-red-600 text-xl" />}
               color="red"
-              trend={summary.absent.trend}
             />
           </Col>
           <Col xs={24} sm={12} md={6} className="mb-4">
@@ -1212,7 +1196,6 @@ const App: React.FC = () => {
               value={summary.late.today}
               icon={<WarningOutlined className="text-orange-600 text-xl" />}
               color="orange"
-              trend={summary.late.trend}
             />
           </Col>
           <Col xs={24} sm={12} md={6} className="mb-4">
@@ -1221,7 +1204,6 @@ const App: React.FC = () => {
               value={summary.leave.today}
               icon={<ClockCircleOutlined className="text-blue-600 text-xl" />}
               color="blue"
-              trend={summary.leave.trend}
             />
           </Col>
         </Row>
