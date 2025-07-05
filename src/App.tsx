@@ -1,34 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar,
-  Clock,
-  BookOpen,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Download,
-  LogOut,
-  User,
-  MapPin,
-  FileText,
+  Layout,
   Menu,
-  X,
-  ChevronDown,
-  ChevronUp,
-  UserCheck,
-  CalendarCheck,
-  Bookmark,
-  BarChart2,
-  Loader,
-  Heart,
-  Stethoscope,
-  Sun,
-  Moon,
-  Lock
-} from 'lucide-react';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { th } from 'date-fns/locale';
+  Button,
+  Card,
+  DatePicker,
+  Table,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Row,
+  Col,
+  Popover,
+  Space,
+  Badge,
+} from 'antd';
+import dayjs from 'dayjs';
+import 'dayjs/locale/th';
+import buddhistEra from 'dayjs/plugin/buddhistEra';
+import locale from 'antd/es/date-picker/locale/th_TH';
+import * as XLSX from 'xlsx';
+import {
+  UserOutlined,
+  CalendarOutlined,
+  BookOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
+  DownloadOutlined,
+  LogoutOutlined,
+  EnvironmentOutlined,
+  FileTextOutlined,
+  MenuOutlined,
+  LeftOutlined,
+  TeamOutlined,
+  ClockCircleOutlined,
+  TagsOutlined,
+  BarChartOutlined,
+  SyncOutlined,
+  HeartOutlined,
+  MedicineBoxOutlined,
+  SunOutlined,
+  MoonOutlined,
+  LockOutlined,
+  FilterOutlined,
+  CheckOutlined
+} from '@ant-design/icons';
+
+dayjs.extend(buddhistEra);
+dayjs.locale('th');
+
+const { Header, Sider, Content } = Layout;
+const { RangePicker } = DatePicker;
+const { TextArea } = Input;
 
 // Types
 interface AttendanceRecord {
@@ -72,39 +98,42 @@ interface User {
 const MOCK_ATTENDANCE: AttendanceRecord[] = [
   { id: '1', fullName: 'สมชาย ใจดี', date: '2025-07-15', status: 'มา', timestamp: '2025-07-15T09:00:00Z' },
   { id: '2', fullName: 'สุนีย์ สุขใจ', date: '2025-07-15', status: 'สาย', timestamp: '2025-07-15T09:15:00Z' },
-  { id: '3', fullName: 'ประเสริฐ ตั้งใจเรียน', date: '2025-07-15', status: 'ลา', reason: 'พบแพทย์', timestamp: '2025-07-15T08:30:00Z' }
+  { id: '3', fullName: 'ประเสริฐ ตั้งใจเรียน', date: '2025-07-15', status: 'ลา', reason: 'พบแพทย์', timestamp: '2025-07-15T08:30:00Z' },
+  { id: '4', fullName: 'นภา สวยงาม', date: '2025-07-16', status: 'มา', timestamp: '2025-07-16T08:45:00Z' },
+  { id: '5', fullName: 'วีระชัย กล้าหาญ', date: '2025-07-16', status: 'ขาด', timestamp: '2025-07-16T00:00:00Z' },
+  { id: '6', fullName: 'ธนวัฒน์ พัฒนา', date: '2025-07-17', status: 'ลา', reason: 'ลากิจ', timestamp: '2025-07-17T08:20:00Z' }
 ];
 
 const MOCK_LEAVES: LeaveRequest[] = [
-  { id: '1', fullName: 'นภา สวยงาม', leaveDate: '2025-07-20', type: 'ลาป่วย', reason: 'เหตุฉุกเฉินในครอบครัว', timestamp: '2025-07-14T10:00:00Z', status: 'รอดำเนินการ' },
-  { id: '2', fullName: 'วีระชัย กล้าหาญ', leaveDate: '2025-07-18', type: 'ลากิจ', reason: 'พบแพทย์', timestamp: '2025-07-13T14:30:00Z', status: 'อนุมัติ' }
+  { id: '1', fullName: 'นภา สวยงาม', leaveDate: '2025-07-20', type: 'ลาป่วย', reason: 'ป่วย', timestamp: '2025-07-14T10:00:00Z', status: 'รอดำเนินการ' },
+  { id: '2', fullName: 'วีระชัย กล้าหาญ', leaveDate: '2025-07-18', type: 'ลากิจ', reason: 'พบแพทย์', timestamp: '2025-07-13T14:30:00Z', status: 'อนุมัติ' },
+  { id: '3', fullName: 'สมชาย ใจดี', leaveDate: '2025-07-19', endDate: '2025-07-21', type: 'ลาพักร้อน', reason: 'พักผ่อน', timestamp: '2025-07-15T09:30:00Z', status: 'รอดำเนินการ' },
+  { id: '4', fullName: 'สุนีย์ สุขใจ', leaveDate: '2025-07-22', type: 'ลาคลอดบุตร', reason: 'คลอดบุตร', timestamp: '2025-07-16T11:15:00Z', status: 'ปฏิเสธ' }
 ];
 
 const MOCK_BOOKINGS: RoomBooking[] = [
   { id: '1', fullName: 'ธนวัฒน์ พัฒนา', room: 'ห้อง A', date: '2025-07-16', startTime: '14:00', endTime: '16:00', purpose: 'ประชุมทีม', timestamp: '2025-07-15T11:00:00Z' },
-  { id: '2', fullName: 'อรุณี สว่างใจ', room: 'ห้อง B', date: '2025-07-17', startTime: '10:00', endTime: '12:00', purpose: 'นำเสนองาน', timestamp: '2025-07-15T12:00:00Z' }
+  { id: '2', fullName: 'อรุณี สว่างใจ', room: 'ห้อง B', date: '2025-07-17', startTime: '10:00', endTime: '12:00', purpose: 'นำเสนองาน', timestamp: '2025-07-15T12:00:00Z' },
+  { id: '3', fullName: 'สมชาย ใจดี', room: 'ห้องประชุมใหญ่', date: '2025-07-18', startTime: '13:00', endTime: '15:00', purpose: 'สัมมนา', timestamp: '2025-07-16T09:45:00Z' },
+  { id: '4', fullName: 'นภา สวยงาม', room: 'ห้องปฏิบัติการ 1', date: '2025-07-19', startTime: '09:00', endTime: '11:00', purpose: 'ทดลองวิทยาศาสตร์', timestamp: '2025-07-17T14:20:00Z' }
 ];
 
 const ROOMS = ['ห้อง A', 'ห้อง B', 'ห้อง C', 'ห้องประชุมใหญ่', 'ห้องปฏิบัติการ 1', 'ห้องปฏิบัติการ 2'];
 const TIME_SLOTS = [
-  '08:00', '09:00', '10:00', '11:00', 
+  '08:00', '09:00', '10:00', '11:00',
   '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'
 ];
 const LEAVE_TYPES = [
-  { value: 'ลาป่วย', label: 'ลาป่วย', icon: Stethoscope, color: 'bg-blue-100 text-blue-800' },
-  { value: 'ลากิจ', label: 'ลากิจ', icon: Heart, color: 'bg-pink-100 text-pink-800' },
-  { value: 'ลาพักร้อน', label: 'ลาพักร้อน', icon: Sun, color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'ลาคลอดบุตร', label: 'ลาคลอดบุตร', icon: Moon, color: 'bg-purple-100 text-purple-800' },
-  { value: 'อื่นๆ', label: 'อื่นๆ', icon: FileText, color: 'bg-gray-100 text-gray-800' }
+  { value: 'ลาป่วย', label: 'ลาป่วย', icon: <MedicineBoxOutlined style={{ color: '#1890ff' }} />, color: 'blue' },
+  { value: 'ลากิจ', label: 'ลากิจ', icon: <HeartOutlined style={{ color: '#eb2f96' }} />, color: 'pink' },
+  { value: 'ลาพักร้อน', label: 'ลาพักร้อน', icon: <SunOutlined style={{ color: '#fa8c16' }} />, color: 'orange' },
+  { value: 'ลาคลอดบุตร', label: 'ลาคลอดบุตร', icon: <MoonOutlined style={{ color: '#722ed1' }} />, color: 'purple' },
+  { value: 'อื่นๆ', label: 'อื่นๆ', icon: <FileTextOutlined style={{ color: '#bfbfbf' }} />, color: 'gray' }
 ];
 
 // Utility functions
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('th-TH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  return dayjs(date).format('D MMM BBBB');
 };
 
 const formatTime = (time: string) => {
@@ -115,165 +144,33 @@ const formatTime = (time: string) => {
 
 const getCurrentDateTime = () => {
   const now = new Date();
-  const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // UTC+7
   return {
-    date: thaiTime.toISOString().split('T')[0],
-    time: `${thaiTime.getHours().toString().padStart(2, '0')}:${thaiTime.getMinutes().toString().padStart(2, '0')}`,
-    timestamp: thaiTime.toISOString()
+    date: now.toISOString().split('T')[0],
+    time: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
+    timestamp: now.toISOString()
   };
 };
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Components
-const Button: React.FC<{
-  children: React.ReactNode;
-  onClick?: () => void;
-  type?: 'button' | 'submit';
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost';
-  disabled?: boolean;
-  className?: string;
-  icon?: React.ReactNode;
-}> = ({ children, onClick, type = 'button', variant = 'primary', disabled = false, className = '', icon }) => {
-  const baseClasses = 'px-4 py-2.5 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 justify-center text-sm';
-  const variants = {
-    primary: 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 shadow-sm hover:shadow-md',
-    secondary: 'bg-white text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 border border-gray-300 shadow-sm hover:shadow-md',
-    danger: 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600 disabled:opacity-50 shadow-sm hover:shadow-md',
-    success: 'bg-gradient-to-r from-green-600 to-teal-500 text-white hover:from-green-700 hover:to-teal-600 disabled:opacity-50 shadow-sm hover:shadow-md',
-    outline: 'bg-transparent border border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50',
-    ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 disabled:opacity-50'
+// Status badge component
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
+    'มา': { color: 'green', icon: <CheckCircleOutlined /> },
+    'ขาด': { color: 'red', icon: <CloseCircleOutlined /> },
+    'สาย': { color: 'orange', icon: <WarningOutlined /> },
+    'ลา': { color: 'blue', icon: <CalendarOutlined /> },
+    'รอดำเนินการ': { color: 'default', icon: <SyncOutlined spin /> },
+    'อนุมัติ': { color: 'green', icon: <CheckCircleOutlined /> },
+    'ปฏิเสธ': { color: 'red', icon: <CloseCircleOutlined /> }
   };
 
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseClasses} ${variants[variant]} ${className}`}
-    >
-      {icon && <span>{icon}</span>}
-      {children}
-    </button>
-  );
-};
-
-const Select: React.FC<{
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  options: { value: string; label: string }[];
-  required?: boolean;
-  className?: string;
-  icon?: React.ReactNode;
-}> = ({ label, value, onChange, options, required = false, className = '', icon }) => {
-  return (
-    <div className={`mb-4 ${className}`}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        {icon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-            {icon}
-          </div>
-        )}
-        <select
-          value={value}
-          onChange={onChange}
-          required={required}
-          className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-no-repeat bg-[right_0.75rem_center] ${icon ? 'pl-10' : ''}`}
-          style={{ backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2Y2E2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==")` }}
-        >
-          <option value="">เลือก {label}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
-};
-
-const TextArea: React.FC<{
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  required?: boolean;
-  className?: string;
-  placeholder?: string;
-}> = ({ label, value, onChange, required = false, className = '', placeholder }) => {
-  return (
-    <div className={`mb-4 ${className}`}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <textarea
-        value={value}
-        onChange={onChange}
-        required={required}
-        placeholder={placeholder}
-        rows={3}
-        className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-      />
-    </div>
-  );
-};
-
-const Card: React.FC<{
-  children: React.ReactNode;
-  className?: string;
-}> = ({ children, className = '' }) => {
-  return (
-    <div className={`bg-white rounded-2xl shadow-md border border-gray-200 p-6 ${className}`}>
-      {children}
-    </div>
-  );
-};
-
-const Modal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}> = ({ isOpen, onClose, title, children }) => {
-  if (!isOpen) return null;
+  const config = statusConfig[status] || { color: 'default', icon: null };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
-        <div className="flex items-center justify-between p-5 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-5">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const statusStyles: Record<string, string> = {
-  'มา': 'bg-green-100 text-green-800',
-  'สาย': 'bg-yellow-100 text-yellow-800',
-  'ขาด': 'bg-red-100 text-red-800',
-  'ลา': 'bg-blue-100 text-blue-800',
-  'รอดำเนินการ': 'bg-gray-100 text-gray-800',
-  'อนุมัติ': 'bg-green-100 text-green-800',
-  'ปฏิเสธ': 'bg-red-100 text-red-800'
-};
-
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const badgeClass = statusStyles[status] ?? 'bg-gray-200 text-gray-700';
-  return (
-    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badgeClass}`}>
+    <Tag icon={config.icon} color={config.color}>
       {status}
-    </span>
+    </Tag>
   );
 };
 
@@ -281,8 +178,11 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState('login');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('dashboard');
+  const [collapsed, setCollapsed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showMobileOverlay, setShowMobileOverlay] = useState(false);
 
   // Data states
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
@@ -290,56 +190,37 @@ const App: React.FC = () => {
   const [roomBookings, setRoomBookings] = useState<RoomBooking[]>(MOCK_BOOKINGS);
 
   // Form states
-  const [leaveForm, setLeaveForm] = useState({
-    fullName: '',
-    leaveDate: '',
-    endDate: '',
-    reason: '',
-    type: ''
-  });
+  const [leaveForm] = Form.useForm();
+  const [bookingForm] = Form.useForm();
 
-  const [bookingForm, setBookingForm] = useState({
-    fullName: '',
-    room: '',
-    date: '',
-    startTime: '',
-    endTime: '',
-    purpose: ''
-  });
-
-  const [adminFilters, setAdminFilters] = useState({
-    startDate: '',
-    endDate: ''
-  });
-
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // Toggle sidebar for mobile
+  const toggleSidebar = () => {
+    setCollapsed(!collapsed);
+    setShowMobileOverlay(!collapsed);
+  };
 
   // Login Component
   const LoginPage = () => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const [form] = Form.useForm();
     const [error, setError] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
-      e.preventDefault();
+    const handleLogin = (values: any) => {
       setIsLoggingIn(true);
+      setError('');
 
       // Simulate API call
       setTimeout(() => {
-        // Mock authentication
-        if (username === 'admin' && password === 'admin123') {
-          setCurrentUser({ 
-            username, 
+        if (values.username === 'admin' && values.password === 'admin123') {
+          setCurrentUser({
+            username: values.username,
             role: 'admin',
             displayName: 'ผู้ดูแลระบบ'
           });
           setCurrentPage('dashboard');
-        } else if (username === 'user' && password === 'user123') {
-          setCurrentUser({ 
-            username, 
+        } else if (values.username === 'user' && values.password === 'user123') {
+          setCurrentUser({
+            username: values.username,
             role: 'user',
             displayName: 'สมชาย ใจดี'
           });
@@ -356,89 +237,75 @@ const App: React.FC = () => {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white text-center">
             <div className="bg-white/20 backdrop-blur-sm w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="text-white" size={28} />
+              <BookOutlined className="text-white text-xl" />
             </div>
             <h1 className="text-2xl font-bold mb-1">ระบบจัดการโรงเรียน</h1>
             <p className="opacity-90">ระบบบันทึกการเข้าโรงเรียนและการจองห้อง</p>
           </div>
 
           <div className="p-8">
-            <form onSubmit={handleLogin}>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ชื่อผู้ใช้ <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <User size={18} />
-                  </div>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    placeholder="กรอกชื่อผู้ใช้ของคุณ"
-                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleLogin}
+              initialValues={{ username: '', password: '' }}
+            >
+              <Form.Item
+                label="ชื่อผู้ใช้"
+                name="username"
+                rules={[{ required: true, message: 'กรุณากรอกชื่อผู้ใช้' }]}
+              >
+                <Input
+                  prefix={<UserOutlined className="text-gray-400" />}
+                  placeholder="กรอกชื่อผู้ใช้ของคุณ"
+                  size="large"
+                />
+              </Form.Item>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  รหัสผ่าน <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Lock size={18} />
-                  </div>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="กรอกรหัสผ่านของคุณ"
-                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-              
+              <Form.Item
+                label="รหัสผ่าน"
+                name="password"
+                rules={[{ required: true, message: 'กรุณากรอกรหัสผ่าน' }]}
+              >
+                <Input.Password
+                  prefix={<LockOutlined className="text-gray-400" />}
+                  placeholder="กรอกรหัสผ่านของคุณ"
+                  size="large"
+                />
+              </Form.Item>
+
               {error && (
                 <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
                   {error}
                 </div>
               )}
-              
-              <Button
-                type="submit"
-                className="w-full mt-2"
-                disabled={isLoggingIn}
-              >
-                {isLoggingIn ? (
-                  <span className="flex items-center justify-center">
-                    <Loader className="animate-spin mr-2" size={16} />
-                    กำลังเข้าสู่ระบบ...
-                  </span>
-                ) : (
-                  <>
-                    <User size={16} />
-                    เข้าสู่ระบบ
-                  </>
-                )}
-              </Button>
-            </form>
+
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="large"
+                  loading={isLoggingIn}
+                  block
+                  icon={<UserOutlined />}
+                >
+                  {isLoggingIn ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+                </Button>
+              </Form.Item>
+            </Form>
 
             <div className="mt-6 text-sm text-gray-600 border-t pt-6">
               <p className="font-medium text-center mb-3">ข้อมูลทดสอบ:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
                   <p className="font-medium flex items-center gap-1">
-                    <User size={14} /> ผู้ดูแลระบบ
+                    <UserOutlined /> ผู้ดูแลระบบ
                   </p>
                   <p className="mt-1">admin / admin123</p>
                 </div>
                 <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
                   <p className="font-medium flex items-center gap-1">
-                    <User size={14} /> ผู้ใช้งาน
+                    <UserOutlined /> ผู้ใช้งาน
                   </p>
                   <p className="mt-1">user / user123</p>
                 </div>
@@ -452,65 +319,51 @@ const App: React.FC = () => {
 
   // Navigation Component
   const Navigation = () => {
-    const navItems = [
-      { id: 'attendance', label: 'บันทึกการเข้าโรงเรียน', icon: UserCheck },
-      { id: 'leave', label: 'การลางาน', icon: CalendarCheck },
-      { id: 'booking', label: 'การจองห้อง', icon: Bookmark },
-      ...(currentUser?.role === 'admin' ? [{ id: 'dashboard', label: 'แดชบอร์ด', icon: BarChart2 }] : [])
+    const menuItems = [
+      { key: 'attendance', label: 'บันทึกการเข้าโรงเรียน', icon: <TeamOutlined /> },
+      { key: 'leave', label: 'การลางาน', icon: <ClockCircleOutlined /> },
+      { key: 'booking', label: 'การจองห้อง', icon: <TagsOutlined /> },
+      ...(currentUser?.role === 'admin' ? [{ key: 'dashboard', label: 'แดชบอร์ด', icon: <BarChartOutlined /> }] : [])
     ];
 
     return (
-      <>
-        {/* Mobile menu button */}
-        {!sidebarOpen && (
-          <div className="lg:hidden fixed top-4 left-4 z-50">
-            <Button
-              onClick={() => setSidebarOpen(true)}
-              variant="secondary"
-              className="p-2 shadow"
-            >
-              <Menu size={20} />
-            </Button>
-          </div>
+      <Layout className="min-h-screen">
+        {showMobileOverlay && (
+          <div
+            className="mobile-overlay md:hidden"
+            onClick={() => {
+              setCollapsed(true);
+              setShowMobileOverlay(false);
+            }}
+          />
         )}
-
-        {/* Sidebar */}
-        <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-gradient-to-b from-indigo-700 to-purple-800 shadow-lg transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <Sider
+          trigger={null}
+          collapsible
+          collapsed={collapsed}
+          width={250}
+          theme="dark"
+          className={`!bg-gradient-to-b from-indigo-700 to-purple-800 ${collapsed ? 'collapsed-mobile' : ''}`}
+        >
           <div className="p-5 text-white">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">ระบบจัดการโรงเรียน</h2>
-              <Button
-                onClick={() => setSidebarOpen(false)}
-                variant="outline"
-                className="p-1 lg:hidden border-white text-white"
-              >
-                <X size={16} />
-              </Button>
             </div>
             <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.displayName}</p>
           </div>
 
-          <nav className="p-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setCurrentPage(item.id);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all ${currentPage === item.id
-                    ? 'bg-white text-indigo-700 font-medium shadow'
-                    : 'text-indigo-100 hover:bg-indigo-600'
-                    }`}
-                >
-                  <Icon size={18} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[currentPage]}
+            items={menuItems}
+            onSelect={({ key }) => {
+              setCurrentPage(key);
+              setCollapsed(true);
+              setShowMobileOverlay(false);
+            }}
+            className="bg-transparent"
+          />
 
           <div className="absolute bottom-4 left-4 right-4">
             <Button
@@ -518,23 +371,38 @@ const App: React.FC = () => {
                 setCurrentUser(null);
                 setCurrentPage('login');
               }}
-              variant="outline"
-              className="w-full border-white text-white hover:bg-indigo-600"
+              block
+              size="large"
+              icon={<LogoutOutlined />}
+              className="text-white border-white hover:bg-indigo-600"
             >
-              <LogOut size={16} />
-              ออกจากระบบ
+              {!collapsed && <span className="text-white">ออกจากระบบ</span>}
             </Button>
           </div>
-        </div>
+        </Sider>
 
-        {/* Overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </>
+        <Layout>
+          <Header className="bg-white shadow-sm flex items-center px-4">
+            <Button
+              type="text"
+              icon={collapsed ? <MenuOutlined className="text-gray-700 text-xl" /> : <LeftOutlined className="text-gray-700 text-xl" />}
+              onClick={toggleSidebar}
+              className="text-lg mr-4"
+            />
+            <div className="flex-1" />
+            <div className="flex items-center gap-3">
+              <span className="font-medium">{currentUser?.displayName}</span>
+              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                <UserOutlined className="text-indigo-600" />
+              </div>
+            </div>
+          </Header>
+
+          <Content className="p-6 bg-gray-50 min-h-[280px]">
+            {renderPage()}
+          </Content>
+        </Layout>
+      </Layout>
     );
   };
 
@@ -544,28 +412,29 @@ const App: React.FC = () => {
     value: number | string;
     icon: React.ReactNode;
     color: string;
-    className?: string;
     trend?: number;
-  }> = ({ title, value, icon, color, className = '', trend }) => {
+  }> = ({ title, value, icon, color, trend }) => {
     return (
-      <div className={`bg-white rounded-2xl shadow p-5 flex items-center ${className}`}>
-        <div className={`${color} w-12 h-12 rounded-xl flex items-center justify-center mr-4`}>
-          {icon}
+      <Card className="h-full shadow-sm border border-gray-200">
+        <div className="flex items-center">
+          <div className={`bg-${color}-100 w-12 h-12 rounded-xl flex items-center justify-center mr-4`}>
+            {icon}
+          </div>
+          <div>
+            <p className="text-gray-500 text-sm">{title}</p>
+            <p className="text-2xl font-bold text-gray-800">{value}</p>
+            {trend !== undefined && (
+              <p className={`text-xs mt-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% จากเมื่อวาน
+              </p>
+            )}
+          </div>
         </div>
-        <div>
-          <p className="text-gray-500 text-sm">{title}</p>
-          <p className="text-2xl font-bold text-gray-800">{value}</p>
-          {trend !== undefined && (
-            <p className={`text-xs mt-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% จากเมื่อวาน
-            </p>
-          )}
-        </div>
-      </div>
+      </Card>
     );
   };
 
-  // Attendance Page - Simplified with single button
+  // Attendance Page
   const AttendancePage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [lastCheckIn, setLastCheckIn] = useState<AttendanceRecord | null>(null);
@@ -576,18 +445,18 @@ const App: React.FC = () => {
         const { time } = getCurrentDateTime();
         setCurrentTime(time);
       };
-      
+
       updateTime();
       const interval = setInterval(updateTime, 1000);
-      
+
       return () => clearInterval(interval);
     }, []);
 
     const handleCheckIn = () => {
       setIsSubmitting(true);
-      
+
       const { date, timestamp } = getCurrentDateTime();
-      
+
       // Simulate API call
       setTimeout(() => {
         const newRecord: AttendanceRecord = {
@@ -600,7 +469,7 @@ const App: React.FC = () => {
 
         setAttendanceRecords([...attendanceRecords, newRecord]);
         setLastCheckIn(newRecord);
-        
+
         setSuccessMessage('บันทึกการเข้าโรงเรียนสำเร็จแล้ว!');
         setShowSuccessModal(true);
         setIsSubmitting(false);
@@ -608,16 +477,16 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-8 text-center">
           <div className="bg-gradient-to-r from-indigo-100 to-purple-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <UserCheck className="text-indigo-600" size={28} />
+            <TeamOutlined className="text-indigo-600 text-2xl" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">บันทึกการเข้าโรงเรียน</h1>
           <p className="text-gray-600">บันทึกการเข้าโรงเรียนประจำวันของคุณ</p>
         </div>
 
-        <Card className="border border-gray-200 text-center p-10 bg-gradient-to-br from-indigo-50 to-purple-50">
+        <Card className="border border-gray-200 text-center p-6 md:p-10 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-sm">
           <div className="mb-6">
             <p className="text-lg font-medium text-gray-800 mb-1">ข้อมูลผู้ใช้</p>
             <div className="bg-white rounded-xl p-4 shadow-sm inline-block">
@@ -627,23 +496,16 @@ const App: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           <Button
             onClick={handleCheckIn}
             className="w-full max-w-xs mx-auto"
-            disabled={isSubmitting}
+            loading={isSubmitting}
+            type="primary"
+            size="large"
+            icon={<CheckCircleOutlined />}
           >
-            {isSubmitting ? (
-              <span className="flex items-center justify-center">
-                <Loader className="animate-spin mr-2" size={16} />
-                กำลังบันทึก...
-              </span>
-            ) : (
-              <>
-                <CheckCircle size={16} />
-                เช็คอินเข้าโรงเรียน
-              </>
-            )}
+            {isSubmitting ? 'กำลังบันทึก...' : 'เช็คอินเข้าโรงเรียน'}
           </Button>
 
           {lastCheckIn && (
@@ -661,9 +523,9 @@ const App: React.FC = () => {
   // Leave Request Page
   const LeavePage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedLeaveType, setSelectedLeaveType] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
+    const handleSubmit = (values: any) => {
       setIsSubmitting(true);
 
       // Simulate API call
@@ -671,22 +533,17 @@ const App: React.FC = () => {
         const newLeave: LeaveRequest = {
           id: generateId(),
           fullName: currentUser?.displayName || '',
-          leaveDate: leaveForm.leaveDate,
-          endDate: leaveForm.endDate || undefined,
-          reason: leaveForm.reason,
-          type: leaveForm.type,
+          leaveDate: values.leaveDate.format('YYYY-MM-DD'),
+          endDate: values.endDate?.format('YYYY-MM-DD') || undefined,
+          reason: values.reason,
+          type: values.type,
           timestamp: new Date().toISOString(),
           status: 'รอดำเนินการ'
         };
 
         setLeaveRequests([...leaveRequests, newLeave]);
-        setLeaveForm({
-          fullName: '',
-          leaveDate: '',
-          endDate: '',
-          reason: '',
-          type: ''
-        });
+        leaveForm.resetFields();
+        setSelectedLeaveType('');
 
         setSuccessMessage('ส่งคำขอลางานสำเร็จแล้ว!');
         setShowSuccessModal(true);
@@ -695,121 +552,110 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-8 text-center">
           <div className="bg-gradient-to-r from-blue-100 to-cyan-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <CalendarCheck className="text-blue-600" size={28} />
+            <ClockCircleOutlined className="text-blue-600 text-2xl" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">การลางาน</h1>
           <p className="text-gray-600">ส่งคำขอลางานของคุณ</p>
         </div>
 
-        <Card className="border border-gray-200">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+        <Card className="border border-gray-200 shadow-sm">
+          <Form
+            form={leaveForm}
+            layout="vertical"
+            onFinish={handleSubmit}
+            initialValues={{ type: '' }}
+          >
             <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl mb-4">
               <p className="font-medium text-gray-800">ผู้ส่งคำขอ: {currentUser?.displayName}</p>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                ประเภทการลา <span className="text-red-500">*</span>
-              </label>
+            <Form.Item
+              label="ประเภทการลา"
+              name="type"
+              rules={[{ required: true, message: 'กรุณาเลือกประเภทการลา' }]}
+            >
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {LEAVE_TYPES.map((type) => (
-                  <button
+                  <Button
                     key={type.value}
-                    type="button"
-                    onClick={() => setLeaveForm({...leaveForm, type: type.value})}
-                    className={`p-3 rounded-xl border ${leaveForm.type === type.value 
-                      ? `${type.color.split(' ')[0]} border-indigo-600 shadow-inner` 
-                      : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                    onClick={() => {
+                      setSelectedLeaveType(type.value);
+                      leaveForm.setFieldValue('type', type.value);
+                    }}
+                    className={`h-24 flex flex-col items-center justify-center ${selectedLeaveType === type.value
+                      ? `bg-${type.color}-100 border-${type.color}-600 shadow-inner`
+                      : 'bg-white border-gray-300 hover:bg-gray-50'
+                      }`}
                   >
-                    <div className="flex flex-col items-center">
-                      <type.icon size={24} className="mb-2" />
-                      <span className="text-sm">{type.label}</span>
+                    <div className="text-lg mb-2">
+                      {type.icon}
                     </div>
-                  </button>
+                    <span className="mt-1">{type.label}</span>
+                  </Button>
                 ))}
               </div>
-            </div>
+            </Form.Item>
 
-            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  วันที่เริ่มลา <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Calendar size={18} />
-                  </div>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="วันที่เริ่มลา"
+                  name="leaveDate"
+                  rules={[{ required: true, message: 'กรุณาเลือกวันที่เริ่มลา' }]}
+                >
                   <DatePicker
-                    selected={leaveForm.leaveDate ? new Date(leaveForm.leaveDate) : null}
-                    onChange={(date: Date | null) => {
-                      if (date) {
-                        setLeaveForm({...leaveForm, leaveDate: date.toISOString().split('T')[0]});
-                      }
-                    }}
-                    dateFormat="dd/MM/yyyy"
-                    locale={th}
-                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholderText="เลือกวันที่"
+                    locale={locale}
+                    format="DD/MM/YYYY"
+                    placeholder="เลือกวันที่"
+                    className="w-full"
+                    size="large"
                   />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  วันที่สิ้นสุดการลา
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Calendar size={18} />
-                  </div>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="วันที่สิ้นสุดการลา"
+                  name="endDate"
+                >
                   <DatePicker
-                    selected={leaveForm.endDate ? new Date(leaveForm.endDate) : null}
-                    onChange={(date: Date | null) => {
-                      if (date) {
-                        setLeaveForm({...leaveForm, endDate: date.toISOString().split('T')[0]});
-                      }
-                    }}
-                    dateFormat="dd/MM/yyyy"
-                    locale={th}
-                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholderText="เลือกวันที่"
+                    locale={locale}
+                    format="DD/MM/YYYY"
+                    placeholder="เลือกวันที่"
+                    className="w-full"
+                    size="large"
                   />
-                </div>
-              </div>
-            </div>
+                </Form.Item>
+              </Col>
+            </Row>
 
-            <TextArea
+            <Form.Item
               label="เหตุผลการลา"
-              value={leaveForm.reason}
-              onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
-              required
-              placeholder="กรุณาระบุเหตุผลการลาของคุณ"
-              className="md:col-span-2"
-            />
+              name="reason"
+              rules={[{ required: true, message: 'กรุณากรอกเหตุผลการลา' }]}
+            >
+              <TextArea
+                placeholder="กรุณาระบุเหตุผลการลาของคุณ"
+                rows={4}
+                size="large"
+              />
+            </Form.Item>
 
-            <div className="md:col-span-2 mt-2">
+            <Form.Item>
               <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting || !leaveForm.type}
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={isSubmitting}
+                icon={<FileTextOutlined />}
               >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center">
-                    <Loader className="animate-spin mr-2" size={16} />
-                    กำลังส่งคำขอ...
-                  </span>
-                ) : (
-                  <>
-                    <FileText size={16} />
-                    ส่งคำขอลา
-                  </>
-                )}
+                {isSubmitting ? 'กำลังส่งคำขอ...' : 'ส่งคำขอลา'}
               </Button>
-            </div>
-          </form>
+            </Form.Item>
+          </Form>
         </Card>
       </div>
     );
@@ -819,10 +665,10 @@ const App: React.FC = () => {
   const BookingPage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [availabilityCheck, setAvailabilityCheck] = useState<{ available: boolean; message: string } | null>(null);
-    const [bookingDate, setBookingDate] = useState<Date | null>(null);
 
     const checkAvailability = () => {
-      if (!bookingForm.room || !bookingForm.date || !bookingForm.startTime || !bookingForm.endTime) {
+      const values = bookingForm.getFieldsValue();
+      if (!values.room || !values.date || !values.startTime || !values.endTime) {
         setAvailabilityCheck({
           available: false,
           message: 'กรุณาเลือกห้อง วันที่ และช่วงเวลา'
@@ -830,9 +676,9 @@ const App: React.FC = () => {
         return;
       }
 
-      const startHour = parseInt(bookingForm.startTime.split(':')[0]);
-      const endHour = parseInt(bookingForm.endTime.split(':')[0]);
-      
+      const startHour = parseInt(values.startTime.split(':')[0]);
+      const endHour = parseInt(values.endTime.split(':')[0]);
+
       if (endHour <= startHour) {
         setAvailabilityCheck({
           available: false,
@@ -841,14 +687,15 @@ const App: React.FC = () => {
         return;
       }
 
+      const dateStr = values.date.format('YYYY-MM-DD');
       const isBooked = roomBookings.some(booking =>
-        booking.room === bookingForm.room &&
-        booking.date === bookingForm.date &&
+        booking.room === values.room &&
+        booking.date === dateStr &&
         (
-          (parseInt(bookingForm.startTime) >= parseInt(booking.startTime) && 
-          parseInt(bookingForm.startTime) < parseInt(booking.endTime)) ||
-          (parseInt(bookingForm.endTime) > parseInt(booking.startTime) && 
-          parseInt(bookingForm.endTime) <= parseInt(booking.endTime))
+          (parseInt(values.startTime) >= parseInt(booking.startTime) &&
+            parseInt(values.startTime) < parseInt(booking.endTime)) ||
+          (parseInt(values.endTime) > parseInt(booking.startTime) &&
+            parseInt(values.endTime) <= parseInt(booking.endTime))
         )
       );
 
@@ -858,52 +705,47 @@ const App: React.FC = () => {
       });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
+    const handleSubmit = (values: any) => {
       setIsSubmitting(true);
+
+      const dateStr = values.date.format('YYYY-MM-DD');
+
+      // Check availability again before submitting
+      const isBooked = roomBookings.some(booking =>
+        booking.room === values.room &&
+        booking.date === dateStr &&
+        (
+          (parseInt(values.startTime) >= parseInt(booking.startTime) &&
+            parseInt(values.startTime) < parseInt(booking.endTime)) ||
+          (parseInt(values.endTime) > parseInt(booking.startTime) &&
+            parseInt(values.endTime) <= parseInt(booking.endTime))
+        )
+      );
+
+      if (isBooked) {
+        setAvailabilityCheck({
+          available: false,
+          message: 'ห้องไม่ว่างในช่วงเวลานี้!'
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       // Simulate API call
       setTimeout(() => {
-        const isBooked = roomBookings.some(booking =>
-          booking.room === bookingForm.room &&
-          booking.date === bookingForm.date &&
-          (
-            (parseInt(bookingForm.startTime) >= parseInt(booking.startTime) && 
-             parseInt(bookingForm.startTime) < parseInt(booking.endTime)) ||
-            (parseInt(bookingForm.endTime) > parseInt(booking.startTime) && 
-             parseInt(bookingForm.endTime) <= parseInt(booking.endTime))
-          )
-        );
-
-        if (isBooked) {
-          setAvailabilityCheck({
-            available: false,
-            message: 'ห้องไม่ว่างในช่วงเวลานี้!'
-          });
-          setIsSubmitting(false);
-          return;
-        }
-
         const newBooking: RoomBooking = {
           id: generateId(),
           fullName: currentUser?.displayName || '',
-          room: bookingForm.room,
-          date: bookingForm.date,
-          startTime: bookingForm.startTime,
-          endTime: bookingForm.endTime,
-          purpose: bookingForm.purpose,
+          room: values.room,
+          date: dateStr,
+          startTime: values.startTime,
+          endTime: values.endTime,
+          purpose: values.purpose,
           timestamp: new Date().toISOString()
         };
 
         setRoomBookings([...roomBookings, newBooking]);
-        setBookingForm({
-          fullName: '',
-          room: '',
-          date: '',
-          startTime: '',
-          endTime: '',
-          purpose: ''
-        });
+        bookingForm.resetFields();
         setAvailabilityCheck(null);
 
         setSuccessMessage('จองห้องสำเร็จแล้ว!');
@@ -913,116 +755,102 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-8 text-center">
           <div className="bg-gradient-to-r from-purple-100 to-pink-100 w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Bookmark className="text-purple-600" size={28} />
+            <TagsOutlined className="text-purple-600 text-2xl" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">การจองห้อง</h1>
           <p className="text-gray-600">จองห้องเรียนหรือห้องประชุม</p>
         </div>
 
-        <Card className="border border-gray-200">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+        <Card className="border border-gray-200 shadow-sm">
+          <Form
+            form={bookingForm}
+            layout="vertical"
+            onFinish={handleSubmit}
+          >
             <div className="md:col-span-2 bg-gray-50 p-4 rounded-xl mb-4">
               <p className="font-medium text-gray-800">ผู้จอง: {currentUser?.displayName}</p>
             </div>
 
-            <Select
-              label="ห้อง"
-              value={bookingForm.room}
-              onChange={(e) => setBookingForm({ ...bookingForm, room: e.target.value })}
-              options={ROOMS.map(room => ({ value: room, label: room }))}
-              required
-              icon={<MapPin size={18} />}
-            />
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="ห้อง"
+                  name="room"
+                  rules={[{ required: true, message: 'กรุณาเลือกห้อง' }]}
+                >
+                  <Select
+                    placeholder="เลือกห้อง"
+                    size="large"
+                    options={ROOMS.map(room => ({ value: room, label: room }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="วันที่จอง"
+                  name="date"
+                  rules={[{ required: true, message: 'กรุณาเลือกวันที่จอง' }]}
+                >
+                  <DatePicker
+                    locale={locale}
+                    format="DD/MM/YYYY"
+                    placeholder="เลือกวันที่"
+                    className="w-full"
+                    size="large"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                วันที่จอง <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  <Calendar size={18} />
-                </div>
-                <DatePicker
-                  selected={bookingDate}
-                  onChange={(date: Date | null) => {
-                    if (date) {
-                      setBookingDate(date);
-                      setBookingForm({...bookingForm, date: date.toISOString().split('T')[0]});
-                    }
-                  }}
-                  dateFormat="dd/MM/yyyy"
-                  locale={th}
-                  className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholderText="เลือกวันที่"
-                />
-              </div>
-            </div>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="เวลาเริ่มต้น"
+                  name="startTime"
+                  rules={[{ required: true, message: 'กรุณาเลือกเวลาเริ่มต้น' }]}
+                >
+                  <Select
+                    placeholder="เลือกเวลา"
+                    size="large"
+                    options={TIME_SLOTS.map(time => ({
+                      value: time,
+                      label: formatTime(time)
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="เวลาสิ้นสุด"
+                  name="endTime"
+                  rules={[{ required: true, message: 'กรุณาเลือกเวลาสิ้นสุด' }]}
+                >
+                  <Select
+                    placeholder="เลือกเวลา"
+                    size="large"
+                    options={TIME_SLOTS.filter(time => {
+                      const startTime = bookingForm.getFieldValue('startTime');
+                      return !startTime || parseInt(time) > parseInt(startTime);
+                    }).map(time => ({
+                      value: time,
+                      label: formatTime(time)
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  เวลาเริ่มต้น <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Clock size={18} />
-                  </div>
-                  <select
-                    value={bookingForm.startTime}
-                    onChange={(e) => setBookingForm({...bookingForm, startTime: e.target.value})}
-                    required
-                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-no-repeat bg-[right_0.75rem_center]"
-                    style={{ backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2Y2E2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==")` }}
-                  >
-                    <option value="">เลือกเวลา</option>
-                    {TIME_SLOTS.map(time => (
-                      <option key={`start-${time}`} value={time}>
-                        {formatTime(time)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  เวลาสิ้นสุด <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <Clock size={18} />
-                  </div>
-                  <select
-                    value={bookingForm.endTime}
-                    onChange={(e) => setBookingForm({...bookingForm, endTime: e.target.value})}
-                    required
-                    className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-no-repeat bg-[right_0.75rem_center]"
-                    style={{ backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI4IDI4IiBmaWxsPSJub25lIiBzdHJva2U9IiM2Y2E2NCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwb2x5bGluZSBwb2ludHM9IjYgOSAxMiAxNSAxOCA5Ij48L3BvbHlsaW5lPjwvc3ZnPg==")` }}
-                  >
-                    <option value="">เลือกเวลา</option>
-                    {TIME_SLOTS.filter(time => 
-                      !bookingForm.startTime || parseInt(time) > parseInt(bookingForm.startTime)
-                    ).map(time => (
-                      <option key={`end-${time}`} value={time}>
-                        {formatTime(time)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
+            <Form.Item>
               <Button
-                type="button"
+                type="default"
                 onClick={checkAvailability}
-                variant="secondary"
-                className="w-full"
+                block
+                size="large"
+                icon={<LockOutlined />}
               >
-                <Clock size={16} />
                 ตรวจสอบความพร้อม
               </Button>
               {availabilityCheck && (
@@ -1030,37 +858,33 @@ const App: React.FC = () => {
                   {availabilityCheck.message}
                 </div>
               )}
-            </div>
+            </Form.Item>
 
-            <TextArea
+            <Form.Item
               label="วัตถุประสงค์"
-              value={bookingForm.purpose}
-              onChange={(e) => setBookingForm({ ...bookingForm, purpose: e.target.value })}
-              required
-              placeholder="อธิบายวัตถุประสงค์ในการจอง"
-              className="md:col-span-2"
-            />
+              name="purpose"
+              rules={[{ required: true, message: 'กรุณากรอกวัตถุประสงค์' }]}
+            >
+              <TextArea
+                placeholder="อธิบายวัตถุประสงค์ในการจอง"
+                rows={3}
+                size="large"
+              />
+            </Form.Item>
 
-            <div className="md:col-span-2 mt-2">
+            <Form.Item>
               <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting}
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={isSubmitting}
+                icon={<EnvironmentOutlined />}
               >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center">
-                    <Loader className="animate-spin mr-2" size={16} />
-                    กำลังจอง...
-                  </span>
-                ) : (
-                  <>
-                    <MapPin size={16} />
-                    จองห้อง
-                  </>
-                )}
+                {isSubmitting ? 'กำลังจอง...' : 'จองห้อง'}
               </Button>
-            </div>
-          </form>
+            </Form.Item>
+          </Form>
         </Card>
       </div>
     );
@@ -1068,59 +892,28 @@ const App: React.FC = () => {
 
   // Admin Dashboard
   const DashboardPage = () => {
-    const exportToExcel = () => {
-      setIsLoading(true);
-      
-      // Create Excel content with UTF-8 BOM for proper encoding
-      const BOM = "\uFEFF";
-      let csvContent = "data:text/csv;charset=utf-8," + BOM;
-      
-      // Attendance data
-      csvContent += "บันทึกการเข้าโรงเรียน\n";
-      csvContent += "ID,ชื่อ-นามสกุล,วันที่,สถานะ,เหตุผล,เวลาบันทึก\n";
-      attendanceRecords.forEach(record => {
-        csvContent += `${record.id},${record.fullName},${record.date},${record.status},"${record.reason || ''}",${record.timestamp}\n`;
-      });
-      
-      // Leave requests
-      csvContent += "\nการลางาน\n";
-      csvContent += "ID,ชื่อ-นามสกุล,ประเภทการลา,วันที่เริ่มลา,วันที่สิ้นสุด,เหตุผล,สถานะ,เวลาบันทึก\n";
-      leaveRequests.forEach(leave => {
-        csvContent += `${leave.id},${leave.fullName},${leave.type},${leave.leaveDate},${leave.endDate || ''},"${leave.reason}",${leave.status},${leave.timestamp}\n`;
-      });
-      
-      // Room bookings
-      csvContent += "\nการจองห้อง\n";
-      csvContent += "ID,ชื่อ-นามสกุล,ห้อง,วันที่,เวลาเริ่มต้น,เวลาสิ้นสุด,วัตถุประสงค์,เวลาบันทึก\n";
-      roomBookings.forEach(booking => {
-        csvContent += `${booking.id},${booking.fullName},${booking.room},${booking.date},${booking.startTime},${booking.endTime},"${booking.purpose}",${booking.timestamp}\n`;
-      });
-      
-      // Create download link
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `school-data-${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      
-      link.click();
-      document.body.removeChild(link);
-      
-      setIsLoading(false);
-      setSuccessMessage('ส่งออกข้อมูลสำเร็จแล้ว!');
-      setShowSuccessModal(true);
+    const [attendanceFilter, setAttendanceFilter] = useState<any>(null);
+    const [leaveFilter, setLeaveFilter] = useState<any>(null);
+    const [bookingFilter, setBookingFilter] = useState<any>(null);
+
+    // Update leave status
+    const updateLeaveStatus = (id: string, status: 'อนุมัติ' | 'ปฏิเสธ') => {
+      setLeaveRequests(prev =>
+        prev.map(leave =>
+          leave.id === id ? { ...leave, status } : leave
+        )
+      );
     };
 
+    // Attendance summary
     const getAttendanceSummary = () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = dayjs().format('YYYY-MM-DD');
       const todayRecords = attendanceRecords.filter(record => record.date === today);
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayDate = yesterday.toISOString().split('T')[0];
-      const yesterdayRecords = attendanceRecords.filter(record => record.date === yesterdayDate);
+      const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+      const yesterdayRecords = attendanceRecords.filter(record => record.date === yesterday);
 
-      const getCount = (records: AttendanceRecord[], status: string) => 
+      const getCount = (records: AttendanceRecord[], status: string) =>
         records.filter(r => r.status === status).length;
 
       const calculateTrend = (todayCount: number, yesterdayCount: number) => {
@@ -1165,305 +958,403 @@ const App: React.FC = () => {
 
     const summary = getAttendanceSummary();
 
-    // Filter bookings based on date range
-    const filteredBookings = adminFilters.startDate && adminFilters.endDate
-      ? roomBookings.filter(booking =>
-        booking.date >= adminFilters.startDate &&
-        booking.date <= adminFilters.endDate
-      )
-      : roomBookings;
+    // Export functions for each section
+    const exportAttendance = () => {
+      setIsLoading(true);
 
-    const toggleSection = (section: string) => {
-      setActiveSection(activeSection === section ? '' : section);
+      const wb = XLSX.utils.book_new();
+      const attendanceData = filteredAttendance.map(record => ({
+        ID: record.id,
+        'ชื่อ-นามสกุล': record.fullName,
+        วันที่: formatDate(record.date),
+        สถานะ: record.status,
+        เหตุผล: record.reason || '',
+        'เวลาบันทึก': formatTime(record.timestamp.split('T')[1].substring(0, 5))
+      }));
+      const attendanceWs = XLSX.utils.json_to_sheet(attendanceData);
+      XLSX.utils.book_append_sheet(wb, attendanceWs, "บันทึกการเข้าโรงเรียน");
+      XLSX.writeFile(wb, `attendance-data-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+
+      setIsLoading(false);
+      setSuccessMessage('ส่งออกข้อมูลการเข้าโรงเรียนสำเร็จแล้ว!');
+      setShowSuccessModal(true);
     };
 
+    const exportLeaves = () => {
+      setIsLoading(true);
+
+      const wb = XLSX.utils.book_new();
+      const leaveData = filteredLeaves.map(leave => ({
+        ID: leave.id,
+        'ชื่อ-นามสกุล': leave.fullName,
+        'ประเภทการลา': leave.type,
+        'วันที่เริ่มลา': formatDate(leave.leaveDate),
+        'วันที่สิ้นสุด': leave.endDate ? formatDate(leave.endDate) : '',
+        เหตุผล: leave.reason,
+        สถานะ: leave.status,
+        'เวลาบันทึก': formatTime(leave.timestamp.split('T')[1].substring(0, 5))
+      }));
+      const leaveWs = XLSX.utils.json_to_sheet(leaveData);
+      XLSX.utils.book_append_sheet(wb, leaveWs, "การลางาน");
+      XLSX.writeFile(wb, `leave-requests-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+
+      setIsLoading(false);
+      setSuccessMessage('ส่งออกข้อมูลการลางานสำเร็จแล้ว!');
+      setShowSuccessModal(true);
+    };
+
+    const exportBookings = () => {
+      setIsLoading(true);
+
+      const wb = XLSX.utils.book_new();
+      const bookingData = filteredBookings.map(booking => ({
+        ID: booking.id,
+        'ชื่อ-นามสกุล': booking.fullName,
+        ห้อง: booking.room,
+        วันที่: formatDate(booking.date),
+        'เวลาเริ่มต้น': formatTime(booking.startTime),
+        'เวลาสิ้นสุด': formatTime(booking.endTime),
+        วัตถุประสงค์: booking.purpose,
+        'เวลาบันทึก': formatTime(booking.timestamp.split('T')[1].substring(0, 5))
+      }));
+      const bookingWs = XLSX.utils.json_to_sheet(bookingData);
+      XLSX.utils.book_append_sheet(wb, bookingWs, "การจองห้อง");
+      XLSX.writeFile(wb, `room-bookings-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+
+      setIsLoading(false);
+      setSuccessMessage('ส่งออกข้อมูลการจองห้องสำเร็จแล้ว!');
+      setShowSuccessModal(true);
+    };
+
+    // Filtered data
+    const filteredAttendance = attendanceFilter
+      ? attendanceRecords.filter(record => {
+        const recordDate = dayjs(record.date);
+        return recordDate.isAfter(attendanceFilter[0]) && recordDate.isBefore(attendanceFilter[1]);
+      })
+      : attendanceRecords;
+
+    const filteredLeaves = leaveFilter
+      ? leaveRequests.filter(leave => {
+        const leaveDate = dayjs(leave.leaveDate);
+        return leaveDate.isAfter(leaveFilter[0]) && leaveDate.isBefore(leaveFilter[1]);
+      })
+      : leaveRequests;
+
+    const filteredBookings = bookingFilter
+      ? roomBookings.filter(booking => {
+        const bookingDate = dayjs(booking.date);
+        return bookingDate.isAfter(bookingFilter[0]) && bookingDate.isBefore(bookingFilter[1]);
+      })
+      : roomBookings;
+
+    // Table columns
+    const attendanceColumns = [
+      { title: 'ชื่อ', dataIndex: 'fullName', key: 'fullName' },
+      { title: 'วันที่', dataIndex: 'date', key: 'date', render: (date: string) => formatDate(date) },
+      {
+        title: 'สถานะ',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string) => <StatusBadge status={status} />
+      },
+      { title: 'เหตุผล', dataIndex: 'reason', key: 'reason' },
+    ];
+
+    const leaveColumns = [
+      { title: 'ชื่อ', dataIndex: 'fullName', key: 'fullName' },
+      { title: 'ประเภท', dataIndex: 'type', key: 'type' },
+      {
+        title: 'วันที่',
+        key: 'date',
+        render: (record: LeaveRequest) => (
+          <span>
+            {formatDate(record.leaveDate)}
+            {record.endDate && ` - ${formatDate(record.endDate)}`}
+          </span>
+        )
+      },
+      {
+        title: 'สถานะ',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string) => <StatusBadge status={status} />
+      },
+      {
+        title: 'การดำเนินการ',
+        key: 'action',
+        render: (record: LeaveRequest) => (
+          record.status === 'รอดำเนินการ' && (
+            <Space>
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => updateLeaveStatus(record.id, 'อนุมัติ')}
+              >
+                อนุมัติ
+              </Button>
+              <Button
+                danger
+                size="small"
+                onClick={() => updateLeaveStatus(record.id, 'ปฏิเสธ')}
+              >
+                ปฏิเสธ
+              </Button>
+            </Space>
+          )
+        )
+      },
+    ];
+
+    const bookingColumns = [
+      { title: 'ห้อง', dataIndex: 'room', key: 'room' },
+      { title: 'วันที่', dataIndex: 'date', key: 'date', render: (date: string) => formatDate(date) },
+      {
+        title: 'เวลา',
+        key: 'time',
+        render: (record: RoomBooking) => (
+          <span>
+            {formatTime(record.startTime)} - {formatTime(record.endTime)}
+          </span>
+        )
+      },
+      { title: 'จองโดย', dataIndex: 'fullName', key: 'fullName' },
+    ];
+
+    // Filter components
+    const AttendanceFilter = () => (
+      <div className="p-3">
+        <div className="font-medium mb-2">กรองวันที่</div>
+        <RangePicker
+          locale={locale}
+          format="DD/MM/YYYY"
+          value={attendanceFilter}
+          onChange={setAttendanceFilter}
+          className="w-full"
+        />
+        <Button
+          onClick={() => setAttendanceFilter(null)}
+          className="mt-2 w-full"
+          size="small"
+        >
+          ล้างตัวกรอง
+        </Button>
+      </div>
+    );
+
+    const LeaveFilter = () => (
+      <div className="p-3">
+        <div className="font-medium mb-2">กรองวันที่</div>
+        <RangePicker
+          locale={locale}
+          format="DD/MM/YYYY"
+          value={leaveFilter}
+          onChange={setLeaveFilter}
+          className="w-full"
+        />
+        <Button
+          onClick={() => setLeaveFilter(null)}
+          className="mt-2 w-full"
+          size="small"
+        >
+          ล้างตัวกรอง
+        </Button>
+      </div>
+    );
+
+    const BookingFilter = () => (
+      <div className="p-3">
+        <div className="font-medium mb-2">กรองวันที่</div>
+        <RangePicker
+          locale={locale}
+          format="DD/MM/YYYY"
+          value={bookingFilter}
+          onChange={setBookingFilter}
+          className="w-full"
+        />
+        <Button
+          onClick={() => setBookingFilter(null)}
+          className="mt-2 w-full"
+          size="small"
+        >
+          ล้างตัวกรอง
+        </Button>
+      </div>
+    );
+
     return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">แดชบอร์ดผู้ดูแล</h1>
-            <p className="text-gray-600">ภาพรวมการเข้าโรงเรียนและการจองห้อง</p>
-          </div>
-          <Button
-            onClick={exportToExcel}
-            variant="primary"
-            disabled={isLoading}
-            icon={<Download size={16} />}
-          >
-            {isLoading ? 'กำลังส่งออก...' : 'ส่งออกเป็น Excel'}
-          </Button>
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">แดชบอร์ดผู้ดูแล</h1>
+          <p className="text-gray-600">ภาพรวมการเข้าโรงเรียนและการจองห้อง</p>
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <StatsCard 
-            title="มาโรงเรียนวันนี้" 
-            value={summary.present.today} 
-            icon={<UserCheck className="text-green-600" size={24} />} 
-            color="bg-green-100"
-            trend={summary.present.trend}
-          />
-          <StatsCard 
-            title="ขาดโรงเรียนวันนี้" 
-            value={summary.absent.today} 
-            icon={<XCircle className="text-red-600" size={24} />} 
-            color="bg-red-100"
-            trend={summary.absent.trend}
-          />
-          <StatsCard 
-            title="สายวันนี้" 
-            value={summary.late.today} 
-            icon={<AlertCircle className="text-yellow-600" size={24} />} 
-            color="bg-yellow-100"
-            trend={summary.late.trend}
-          />
-          <StatsCard 
-            title="ลาวันนี้" 
-            value={summary.leave.today} 
-            icon={<Calendar className="text-blue-600" size={24} />} 
-            color="bg-blue-100"
-            trend={summary.leave.trend}
-          />
-        </div>
+        <Row gutter={16} className="mb-6">
+          <Col xs={24} sm={12} md={6} className="mb-4">
+            <StatsCard
+              title="มาโรงเรียนวันนี้"
+              value={summary.present.today}
+              icon={<TeamOutlined className="text-green-600 text-xl" />}
+              color="green"
+              trend={summary.present.trend}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6} className="mb-4">
+            <StatsCard
+              title="ขาดโรงเรียนวันนี้"
+              value={summary.absent.today}
+              icon={<CloseCircleOutlined className="text-red-600 text-xl" />}
+              color="red"
+              trend={summary.absent.trend}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6} className="mb-4">
+            <StatsCard
+              title="สายวันนี้"
+              value={summary.late.today}
+              icon={<WarningOutlined className="text-orange-600 text-xl" />}
+              color="orange"
+              trend={summary.late.trend}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6} className="mb-4">
+            <StatsCard
+              title="ลาวันนี้"
+              value={summary.leave.today}
+              icon={<ClockCircleOutlined className="text-blue-600 text-xl" />}
+              color="blue"
+              trend={summary.leave.trend}
+            />
+          </Col>
+        </Row>
 
-        {/* Date Range Filter */}
-        <Card className="mb-6 p-5 bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">กรองข้อมูล</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                วันที่เริ่มต้น
-              </label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  <Calendar size={18} />
-                </div>
-                <DatePicker
-                  selected={adminFilters.startDate ? new Date(adminFilters.startDate) : null}
-                  onChange={(date: Date | null) => {
-                    if (date) {
-                      setAdminFilters({...adminFilters, startDate: date.toISOString().split('T')[0]});
-                    }
-                  }}
-                  dateFormat="dd/MM/yyyy"
-                  locale={th}
-                  className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholderText="เลือกวันที่"
-                />
-              </div>
+        {/* Sections */}
+        <Card
+          className="mb-6 shadow-sm"
+          title={
+            <div className="flex items-center gap-2">
+              <TeamOutlined className="text-indigo-600" />
+              <span>บันทึกการเข้าโรงเรียนล่าสุด</span>
+              <Badge count={filteredAttendance.length} className="ml-2" />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                วันที่สิ้นสุด
-              </label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  <Calendar size={18} />
-                </div>
-                <DatePicker
-                  selected={adminFilters.endDate ? new Date(adminFilters.endDate) : null}
-                  onChange={(date: Date | null) => {
-                    if (date) {
-                      setAdminFilters({...adminFilters, endDate: date.toISOString().split('T')[0]});
-                    }
-                  }}
-                  dateFormat="dd/MM/yyyy"
-                  locale={th}
-                  className="w-full pl-10 px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholderText="เลือกวันที่"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-end gap-2 md:col-span-2">
-              <Button
-                onClick={() => setAdminFilters({ startDate: '', endDate: '' })}
-                variant="secondary"
-                className="flex-1"
+          }
+          extra={
+            <Space>
+              <Popover
+                content={<AttendanceFilter />}
+                title="กรองข้อมูล"
+                trigger="click"
+                placement="bottomRight"
               >
-                ล้างตัวกรอง
-              </Button>
+                <Button icon={<FilterOutlined />}>
+                  กรอง
+                  {attendanceFilter && <CheckOutlined className="ml-1 text-green-600" />}
+                </Button>
+              </Popover>
               <Button
-                onClick={() => {
-                  // Apply filters
-                }}
-                variant="primary"
-                className="flex-1"
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={exportAttendance}
+                loading={isLoading}
               >
-                ใช้ตัวกรอง
+                ส่งออก
               </Button>
-            </div>
-          </div>
+            </Space>
+          }
+        >
+          <Table
+            dataSource={filteredAttendance}
+            columns={attendanceColumns}
+            pagination={{ pageSize: 5 }}
+            rowKey="id"
+            size="small"
+          />
         </Card>
 
-        {/* Collapsible Sections */}
-        <div className="space-y-6">
-          {/* Recent Attendance */}
-          <Card>
-            <div
-              className="flex justify-between items-center cursor-pointer p-4"
-              onClick={() => toggleSection('attendance')}
-            >
-              <div className="flex items-center gap-2">
-                <UserCheck size={20} className="text-indigo-600" />
-                <h3 className="text-lg font-semibold text-gray-800">การเข้าโรงเรียนล่าสุด</h3>
-              </div>
-              {activeSection === 'attendance' ? <ChevronUp /> : <ChevronDown />}
+        <Card
+          className="mb-6 shadow-sm"
+          title={
+            <div className="flex items-center gap-2">
+              <TagsOutlined className="text-purple-600" />
+              <span>การจองห้องล่าสุด</span>
+              <Badge count={filteredBookings.length} className="ml-2" />
             </div>
+          }
+          extra={
+            <Space>
+              <Popover
+                content={<BookingFilter />}
+                title="กรองข้อมูล"
+                trigger="click"
+                placement="bottomRight"
+              >
+                <Button icon={<FilterOutlined />}>
+                  กรอง
+                  {bookingFilter && <CheckOutlined className="ml-1 text-green-600" />}
+                </Button>
+              </Popover>
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={exportBookings}
+                loading={isLoading}
+              >
+                ส่งออก
+              </Button>
+            </Space>
+          }
+        >
+          <Table
+            dataSource={filteredBookings}
+            columns={bookingColumns}
+            pagination={{ pageSize: 5 }}
+            rowKey="id"
+            size="small"
+          />
+        </Card>
 
-            {activeSection === 'attendance' && (
-              <div className="border-t pt-4 px-4 pb-2">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อ</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {attendanceRecords.slice(-5).map((record) => (
-                        <tr key={record.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{record.fullName}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{formatDate(record.date)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <StatusBadge status={record.status} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Recent Bookings */}
-          <Card>
-            <div
-              className="flex justify-between items-center cursor-pointer p-4"
-              onClick={() => toggleSection('bookings')}
-            >
-              <div className="flex items-center gap-2">
-                <Bookmark size={20} className="text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-800">การจองห้องล่าสุด</h3>
-              </div>
-              {activeSection === 'bookings' ? <ChevronUp /> : <ChevronDown />}
+        <Card
+          className="shadow-sm"
+          title={
+            <div className="flex items-center gap-2">
+              <ClockCircleOutlined className="text-blue-600" />
+              <span>คำขอลาที่รอดำเนินการ</span>
+              <Badge count={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ').length} className="ml-2" />
             </div>
-
-            {activeSection === 'bookings' && (
-              <div className="border-t pt-4 px-4 pb-2">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ห้อง</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จองโดย</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredBookings.slice(-5).map((booking) => (
-                        <tr key={booking.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{booking.room}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(booking.date)}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                            {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{booking.fullName}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Leave Requests */}
-          <Card>
-            <div
-              className="flex justify-between items-center cursor-pointer p-4"
-              onClick={() => toggleSection('leaves')}
-            >
-              <div className="flex items-center gap-2">
-                <CalendarCheck size={20} className="text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-800">คำขอลาที่รอดำเนินการ</h3>
-              </div>
-              {activeSection === 'leaves' ? <ChevronUp /> : <ChevronDown />}
-            </div>
-
-            {activeSection === 'leaves' && (
-              <div className="border-t pt-4 px-4 pb-2">
-                <div className="space-y-3">
-                  {leaveRequests
-                    .filter(leave => leave.status === 'รอดำเนินการ')
-                    .map((leave) => {
-                      const leaveType = LEAVE_TYPES.find(type => type.value === leave.type);
-                      return (
-                        <div key={leave.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                          <div>
-                            <p className="font-medium text-gray-900">{leave.fullName}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {leaveType && (
-                                <span className={`px-2 py-1 rounded-full text-xs ${leaveType.color}`}>
-                                  {leaveType.label}
-                                </span>
-                              )}
-                              <span className="text-sm text-gray-600">
-                                {formatDate(leave.leaveDate)}
-                                {leave.endDate && ` - ${formatDate(leave.endDate)}`}
-                              </span>
-                            </div>
-                            {leave.reason && (
-                              <p className="text-sm text-gray-600 mt-2">{leave.reason}</p>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                setLeaveRequests(prev => prev.map(l =>
-                                  l.id === leave.id ? { ...l, status: 'อนุมัติ' } : l
-                                ));
-                              }}
-                              variant="success"
-                              className="text-xs px-3 py-1.5"
-                            >
-                              อนุมัติ
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                setLeaveRequests(prev => prev.map(l =>
-                                  l.id === leave.id ? { ...l, status: 'ปฏิเสธ' } : l
-                                ));
-                              }}
-                              variant="danger"
-                              className="text-xs px-3 py-1.5"
-                            >
-                              ปฏิเสธ
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  {leaveRequests.filter(leave => leave.status === 'รอดำเนินการ').length === 0 && (
-                    <div className="text-center py-6">
-                      <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle className="text-gray-400" size={24} />
-                      </div>
-                      <p className="text-gray-500">ไม่มีคำขอลาที่รอดำเนินการ</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
+          }
+          extra={
+            <Space>
+              <Popover
+                content={<LeaveFilter />}
+                title="กรองข้อมูล"
+                trigger="click"
+                placement="bottomRight"
+              >
+                <Button icon={<FilterOutlined />}>
+                  กรอง
+                  {leaveFilter && <CheckOutlined className="ml-1 text-green-600" />}
+                </Button>
+              </Popover>
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={exportLeaves}
+                loading={isLoading}
+              >
+                ส่งออก
+              </Button>
+            </Space>
+          }
+        >
+          <Table
+            dataSource={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ')}
+            columns={leaveColumns}
+            pagination={{ pageSize: 5 }}
+            rowKey="id"
+            size="small"
+          />
+        </Card>
       </div>
     );
   };
@@ -1471,19 +1362,23 @@ const App: React.FC = () => {
   // Success Modal
   const SuccessModal = () => (
     <Modal
-      isOpen={showSuccessModal}
-      onClose={() => setShowSuccessModal(false)}
+      open={showSuccessModal}
+      onCancel={() => setShowSuccessModal(false)}
       title="สำเร็จ!"
+      footer={null}
+      centered
     >
       <div className="text-center py-4">
         <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="text-green-600" size={32} />
+          <CheckCircleOutlined className="text-green-600 text-2xl" />
         </div>
         <p className="text-gray-700 mb-6 text-lg font-medium">{successMessage}</p>
         <div className="grid grid-cols-1 gap-3">
           <Button
             onClick={() => setShowSuccessModal(false)}
-            className="w-full"
+            type="primary"
+            block
+            size="large"
           >
             ดำเนินการต่อ
           </Button>
@@ -1493,8 +1388,8 @@ const App: React.FC = () => {
                 setShowSuccessModal(false);
                 setCurrentPage('dashboard');
               }}
-              variant="secondary"
-              className="w-full"
+              block
+              size="large"
             >
               ดูแดชบอร์ด
             </Button>
@@ -1505,7 +1400,7 @@ const App: React.FC = () => {
   );
 
   // Main render
-  if (!currentUser) {
+  if (!currentUser || currentPage === 'login') {
     return <LoginPage />;
   }
 
@@ -1525,17 +1420,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <>
       <Navigation />
-
-      <div className="lg:ml-64">
-        <div className="pt-16 lg:pt-6">
-          {renderPage()}
-        </div>
-      </div>
-
       <SuccessModal />
-    </div>
+    </>
   );
 };
 
