@@ -16,6 +16,7 @@ import {
   Popover,
   Space,
   Badge,
+  Tabs,
 } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
@@ -47,7 +48,9 @@ import {
   FilterOutlined,
   CheckOutlined,
   CloseOutlined,
-  LeftOutlined
+  LeftOutlined,
+  SettingOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 
 dayjs.extend(buddhistEra);
@@ -161,7 +164,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     'ขาด': { color: 'red', icon: <CloseCircleOutlined /> },
     'สาย': { color: 'orange', icon: <WarningOutlined /> },
     'ลา': { color: 'blue', icon: <CalendarOutlined /> },
-    'รอดำเนินการ': { color: 'default', icon: <SyncOutlined /> },
+    'รอดำเนินการ': { color: 'default', icon: <ClockCircleOutlined /> },
     'อนุมัติ': { color: 'green', icon: <CheckCircleOutlined /> },
     'ปฏิเสธ': { color: 'red', icon: <CloseCircleOutlined /> }
   };
@@ -173,7 +176,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
       icon={config.icon}
       color={config.color}
       className="text-xs sm:text-sm w-20 flex items-center justify-center"
-      style={{ minWidth: '80px', height: '24px', display: 'flex', alignItems: 'center' }}
+      style={{ minWidth: '120px', height: '24px', display: 'flex', alignItems: 'center' }}
     >
       {status}
     </Tag>
@@ -473,28 +476,6 @@ const App: React.FC = () => {
           </Content>
         </Layout>
       </Layout>
-    );
-  };
-
-  // Dashboard Stats Card
-  const StatsCard: React.FC<{
-    title: string;
-    value: number | string;
-    icon: React.ReactNode;
-    color: string;
-  }> = ({ title, value, icon, color }) => {
-    return (
-      <Card className="h-full shadow-sm border border-gray-200">
-        <div className="flex items-center">
-          <div className={`bg-${color}-100 w-12 h-12 rounded-xl flex items-center justify-center mr-4`}>
-            {icon}
-          </div>
-          <div>
-            <p className="text-gray-500 text-sm">{title}</p>
-            <p className="text-2xl font-bold text-gray-800">{value}</p>
-          </div>
-        </div>
-      </Card>
     );
   };
 
@@ -955,10 +936,13 @@ const App: React.FC = () => {
   };
 
   // Admin Dashboard
+  // ... (โค้ดก่อนหน้าเหมือนเดิม)
+
   const DashboardPage = () => {
     const [attendanceFilter, setAttendanceFilter] = useState<any>(null);
     const [leaveFilter, setLeaveFilter] = useState<any>(null);
     const [bookingFilter, setBookingFilter] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState('attendance');
 
     // Update leave status
     const updateLeaveStatus = (id: string, status: 'อนุมัติ' | 'ปฏิเสธ') => {
@@ -989,10 +973,14 @@ const App: React.FC = () => {
       const leaveToday = getCount(todayRecords, 'ลา');
       const leaveYesterday = getCount(yesterdayRecords, 'ลา');
 
+      const totalToday = todayRecords.length || 100;
+      const attendanceRate = totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 0;
+
       return {
         present: {
           today: presentToday,
           yesterday: presentYesterday,
+          rate: attendanceRate
         },
         absent: {
           today: absentToday,
@@ -1005,78 +993,79 @@ const App: React.FC = () => {
         leave: {
           today: leaveToday,
           yesterday: leaveYesterday,
-        }
+        },
+        total: totalToday
       };
     };
 
     const summary = getAttendanceSummary();
 
-    // Export functions for each section
+    // Export functions
     const exportAttendance = () => {
       setIsLoading(true);
-
-      const wb = XLSX.utils.book_new();
-      const attendanceData = filteredAttendance.map(record => ({
-        ID: record.id,
-        'ชื่อ-นามสกุล': record.fullName,
-        วันที่: formatDate(record.date),
-        สถานะ: record.status,
-        เหตุผล: record.reason || '',
-        'เวลาบันทึก': formatTime(record.timestamp.split('T')[1].substring(0, 5))
-      }));
-      const attendanceWs = XLSX.utils.json_to_sheet(attendanceData);
-      XLSX.utils.book_append_sheet(wb, attendanceWs, "บันทึกการเข้าโรงเรียน");
-      XLSX.writeFile(wb, `attendance-data-${dayjs().format('YYYY-MM-DD')}.xlsx`);
-
-      setIsLoading(false);
-      setSuccessMessage('ส่งออกข้อมูลการเข้าโรงเรียนสำเร็จแล้ว!');
-      setShowSuccessModal(true);
+      setTimeout(() => {
+        const wb = XLSX.utils.book_new();
+        const attendanceData = filteredAttendance.map(record => ({
+          ID: record.id,
+          'ชื่อ-นามสกุล': record.fullName,
+          วันที่: formatDate(record.date),
+          สถานะ: record.status,
+          เหตุผล: record.reason || '',
+          'เวลาบันทึก': formatTime(record.timestamp.split('T')[1].substring(0, 5))
+        }));
+        const attendanceWs = XLSX.utils.json_to_sheet(attendanceData);
+        XLSX.utils.book_append_sheet(wb, attendanceWs, "บันทึกการเข้าโรงเรียน");
+        XLSX.writeFile(wb, `attendance-data-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+        setIsLoading(false);
+        setSuccessMessage('ส่งออกข้อมูลการเข้าโรงเรียนสำเร็จแล้ว!');
+        setShowSuccessModal(true);
+      }, 800);
     };
 
     const exportLeaves = () => {
       setIsLoading(true);
-
-      const wb = XLSX.utils.book_new();
-      const leaveData = filteredLeaves.map(leave => ({
-        ID: leave.id,
-        'ชื่อ-นามสกุล': leave.fullName,
-        'ประเภทการลา': leave.type,
-        'วันที่เริ่มลา': formatDate(leave.leaveDate),
-        'วันที่สิ้นสุด': leave.endDate ? formatDate(leave.endDate) : '',
-        เหตุผล: leave.reason,
-        สถานะ: leave.status,
-        'เวลาบันทึก': formatTime(leave.timestamp.split('T')[1].substring(0, 5))
-      }));
-      const leaveWs = XLSX.utils.json_to_sheet(leaveData);
-      XLSX.utils.book_append_sheet(wb, leaveWs, "การลางาน");
-      XLSX.writeFile(wb, `leave-requests-${dayjs().format('YYYY-MM-DD')}.xlsx`);
-
-      setIsLoading(false);
-      setSuccessMessage('ส่งออกข้อมูลการลางานสำเร็จแล้ว!');
-      setShowSuccessModal(true);
+      setTimeout(() => {
+        const wb = XLSX.utils.book_new();
+        const leaveData = filteredLeaves.map(leave => ({
+          ID: leave.id,
+          'ชื่อ-นามสกุล': leave.fullName,
+          'ประเภทการลา': leave.type,
+          'วันที่เริ่มลา': formatDate(leave.leaveDate),
+          'วันที่สิ้นสุด': leave.endDate ? formatDate(leave.endDate) : '',
+          เหตุผล: leave.reason,
+          สถานะ: leave.status,
+          'เวลาบันทึก': formatTime(leave.timestamp.split('T')[1].substring(0, 5))
+        }));
+        const leaveWs = XLSX.utils.json_to_sheet(leaveData);
+        XLSX.utils.book_append_sheet(wb, leaveWs, "การลางาน");
+        XLSX.writeFile(wb, `leave-requests-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+        setIsLoading(false);
+        setSuccessMessage('ส่งออกข้อมูลการลางานสำเร็จแล้ว!');
+        setShowSuccessModal(true);
+      }, 800);
     };
 
     const exportBookings = () => {
       setIsLoading(true);
-
-      const wb = XLSX.utils.book_new();
-      const bookingData = filteredBookings.map(booking => ({
-        ID: booking.id,
-        'ชื่อ-นามสกุล': booking.fullName,
-        ห้อง: booking.room,
-        วันที่: formatDate(booking.date),
-        'เวลาเริ่มต้น': formatTime(booking.startTime),
-        'เวลาสิ้นสุด': formatTime(booking.endTime),
-        วัตถุประสงค์: booking.purpose,
-        'เวลาบันทึก': formatTime(booking.timestamp.split('T')[1].substring(0, 5))
-      }));
-      const bookingWs = XLSX.utils.json_to_sheet(bookingData);
-      XLSX.utils.book_append_sheet(wb, bookingWs, "การจองห้อง");
-      XLSX.writeFile(wb, `room-bookings-${dayjs().format('YYYY-MM-DD')}.xlsx`);
-
-      setIsLoading(false);
-      setSuccessMessage('ส่งออกข้อมูลการจองห้องสำเร็จแล้ว!');
-      setShowSuccessModal(true);
+      setTimeout(() => {
+        const wb = XLSX.utils.book_new();
+        const bookingData = filteredBookings.map(booking => ({
+          ID: booking.id,
+          'ชื่อ-นามสกุล': booking.fullName,
+          ห้อง: booking.room,
+          วันที่: formatDate(booking.date),
+          'เวลาเริ่มต้น': formatTime(booking.startTime),
+          'เวลาสิ้นสุด': formatTime(booking.endTime),
+          วัตถุประสงค์: booking.purpose,
+          'เวลาบันทึก': formatTime(booking.timestamp.split('T')[1].substring(0, 5))
+        }));
+        const bookingWs = XLSX.utils.json_to_sheet(bookingData);
+        XLSX.utils.book_append_sheet(wb, bookingWs, "การจองห้อง");
+        XLSX.writeFile(wb, `room-bookings-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+        setIsLoading(false);
+        setSuccessMessage('ส่งออกข้อมูลการจองห้องสำเร็จแล้ว!');
+        setShowSuccessModal(true);
+      }, 800);
     };
 
     // Filtered data
@@ -1101,31 +1090,244 @@ const App: React.FC = () => {
       })
       : roomBookings;
 
+    // Enhanced Stats Card Component
+    const EnhancedStatsCard: React.FC<{
+      title: string;
+      value: number | string;
+      icon: React.ReactNode;
+      color: string;
+      subtitle?: string;
+      progress?: number;
+    }> = ({ title, value, icon, color, subtitle }) => (
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-300`}>
+        <div className="flex items-start justify-between mb-4">
+          <div className={`w-12 h-12 rounded-xl bg-${color}-50 flex items-center justify-center`}>
+            {React.isValidElement(icon) &&
+              React.cloneElement(icon as React.ReactElement<any>, {
+                className: `text-${color}-600 text-xl`,
+              })}
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+            {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+          </div>
+        </div>
+      </div>
+    );
+
+    // Enhanced Mobile Card Component
+    const EnhancedMobileCard: React.FC<{ item: any; type: string }> = ({ item, type }) => (
+      <div className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-all duration-200">
+        {type === 'attendance' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <UserOutlined className="text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{item.fullName}</h3>
+                  <p className="text-sm text-gray-500">{formatDate(item.date)}</p>
+                </div>
+              </div>
+              <StatusBadge status={item.status} />
+            </div>
+            {item.reason && (
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-sm text-gray-700 flex items-start gap-2">
+                  <FileTextOutlined className="text-gray-400 mt-0.5" />
+                  {item.reason}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {type === 'leave' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <ClockCircleOutlined className="text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{item.fullName}</h3>
+                  <p className="text-sm text-gray-500">{item.type}</p>
+                </div>
+              </div>
+              <StatusBadge status={item.status} />
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+              <div className="flex items-center text-sm text-gray-600">
+                <CalendarOutlined className="mr-2" />
+                <span>{formatDate(item.leaveDate)}</span>
+                {item.endDate && <span> - {formatDate(item.endDate)}</span>}
+              </div>
+              <div className="flex items-start text-sm text-gray-600">
+                <FileTextOutlined className="mr-2 mt-0.5" />
+                <span>{item.reason}</span>
+              </div>
+            </div>
+
+            {item.status === 'รอดำเนินการ' && (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => updateLeaveStatus(item.id, 'อนุมัติ')}
+                  className="flex-1"
+                  icon={<CheckOutlined />}
+                >
+                  อนุมัติ
+                </Button>
+                <Button
+                  danger
+                  size="small"
+                  onClick={() => updateLeaveStatus(item.id, 'ปฏิเสธ')}
+                  className="flex-1"
+                  icon={<CloseCircleOutlined />}
+                >
+                  ปฏิเสธ
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {type === 'booking' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <TagsOutlined className="text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{item.room}</h3>
+                  <p className="text-sm text-gray-500">{item.fullName}</p>
+                </div>
+              </div>
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">#{item.id}</span>
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+              <div className="flex items-center text-sm text-gray-600">
+                <CalendarOutlined className="mr-2" />
+                <span>{formatDate(item.date)}</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <ClockCircleOutlined className="mr-2" />
+                <span>{formatTime(item.startTime)} - {formatTime(item.endTime)}</span>
+              </div>
+              <div className="flex items-start text-sm text-gray-600">
+                <FileTextOutlined className="mr-2 mt-0.5" />
+                <span>{item.purpose}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+
+    // Filter Component
+    const FilterComponent: React.FC<{
+      filter: any;
+      setFilter: React.Dispatch<React.SetStateAction<any>>;
+      title: string
+    }> = ({ filter, setFilter, title }) => (
+      <div className="p-4 w-80">
+        <div className="font-semibold text-gray-900 mb-3">{title}</div>
+        <div className="space-y-3">
+          <RangePicker
+            locale={locale}
+            format="DD/MM/YYYY"
+            value={filter}
+            onChange={setFilter}
+            className="w-full"
+            placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
+          />
+          <Button
+            onClick={() => setFilter(null)}
+            className="w-full"
+            icon={<SyncOutlined />}
+          >
+            ล้างตัวกรอง
+          </Button>
+        </div>
+      </div>
+    );
+
     // Table columns
     const attendanceColumns = [
-      { title: 'ชื่อ', dataIndex: 'fullName', key: 'fullName' },
-      { title: 'วันที่', dataIndex: 'date', key: 'date', render: (date: string) => formatDate(date) },
+      {
+        title: 'ชื่อ-นามสกุล',
+        dataIndex: 'fullName',
+        key: 'fullName',
+        render: (text: string) => (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <UserOutlined className="text-blue-600 text-sm" />
+            </div>
+            <span className="font-medium">{text}</span>
+          </div>
+        )
+      },
+      {
+        title: 'วันที่',
+        dataIndex: 'date',
+        key: 'date',
+        render: (date: string) => formatDate(date)
+      },
       {
         title: 'สถานะ',
         dataIndex: 'status',
         key: 'status',
         render: (status: string) => <StatusBadge status={status} />
       },
-      { title: 'เหตุผล', dataIndex: 'reason', key: 'reason' },
+      {
+        title: 'เหตุผล',
+        dataIndex: 'reason',
+        key: 'reason',
+        render: (reason: string) => reason || <span className="text-gray-400">-</span>
+      }
     ];
 
     const leaveColumns = [
-      { title: 'ชื่อ', dataIndex: 'fullName', key: 'fullName' },
-      { title: 'ประเภท', dataIndex: 'type', key: 'type' },
+      {
+        title: 'ชื่อ-นามสกุล',
+        dataIndex: 'fullName',
+        key: 'fullName',
+        render: (text: string) => (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+              <UserOutlined className="text-orange-600 text-sm" />
+            </div>
+            <span className="font-medium">{text}</span>
+          </div>
+        )
+      },
+      {
+        title: 'ประเภท',
+        dataIndex: 'type',
+        key: 'type'
+      },
       {
         title: 'วันที่',
         key: 'date',
         render: (record: LeaveRequest) => (
-          <span>
-            {formatDate(record.leaveDate)}
-            {record.endDate && ` - ${formatDate(record.endDate)}`}
-          </span>
+          <div>
+            <div>{formatDate(record.leaveDate)}</div>
+            {record.endDate && (
+              <div className="text-xs text-gray-500">ถึง {formatDate(record.endDate)}</div>
+            )}
+          </div>
         )
+      },
+      {
+        title: 'เหตุผล',
+        dataIndex: 'reason',
+        key: 'reason'
       },
       {
         title: 'สถานะ',
@@ -1143,6 +1345,7 @@ const App: React.FC = () => {
                 type="primary"
                 size="small"
                 onClick={() => updateLeaveStatus(record.id, 'อนุมัติ')}
+                icon={<CheckOutlined />}
               >
                 อนุมัติ
               </Button>
@@ -1150,260 +1353,369 @@ const App: React.FC = () => {
                 danger
                 size="small"
                 onClick={() => updateLeaveStatus(record.id, 'ปฏิเสธ')}
+                icon={<CloseCircleOutlined />}
               >
                 ปฏิเสธ
               </Button>
             </Space>
           )
         )
-      },
+      }
     ];
 
     const bookingColumns = [
-      { title: 'ห้อง', dataIndex: 'room', key: 'room' },
-      { title: 'วันที่', dataIndex: 'date', key: 'date', render: (date: string) => formatDate(date) },
+      {
+        title: 'ห้อง',
+        dataIndex: 'room',
+        key: 'room',
+        render: (room: string) => <span className="font-medium">{room}</span>
+      },
+      {
+        title: 'วันที่',
+        dataIndex: 'date',
+        key: 'date',
+        render: (date: string) => formatDate(date)
+      },
       {
         title: 'เวลา',
         key: 'time',
         render: (record: RoomBooking) => (
-          <span>
+          <span className="text-gray-700">
             {formatTime(record.startTime)} - {formatTime(record.endTime)}
           </span>
         )
       },
-      { title: 'จองโดย', dataIndex: 'fullName', key: 'fullName' },
+      {
+        title: 'จองโดย',
+        dataIndex: 'fullName',
+        key: 'fullName',
+        render: (text: string) => (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+              <UserOutlined className="text-green-600 text-sm" />
+            </div>
+            <span className="font-medium">{text}</span>
+          </div>
+        )
+      },
+      {
+        title: 'วัตถุประสงค์',
+        dataIndex: 'purpose',
+        key: 'purpose'
+      }
     ];
 
-    // Filter components
-    const AttendanceFilter = () => (
-      <div className="p-3">
-        <div className="font-medium mb-2">กรองวันที่</div>
-        <RangePicker
-          locale={locale}
-          format="DD/MM/YYYY"
-          value={attendanceFilter}
-          onChange={setAttendanceFilter}
-          className="w-full"
-        />
-        <Button
-          onClick={() => setAttendanceFilter(null)}
-          className="mt-2 w-full"
-          size="small"
-        >
-          ล้างตัวกรอง
-        </Button>
-      </div>
-    );
-
-    const LeaveFilter = () => (
-      <div className="p-3">
-        <div className="font-medium mb-2">กรองวันที่</div>
-        <RangePicker
-          locale={locale}
-          format="DD/MM/YYYY"
-          value={leaveFilter}
-          onChange={setLeaveFilter}
-          className="w-full"
-        />
-        <Button
-          onClick={() => setLeaveFilter(null)}
-          className="mt-2 w-full"
-          size="small"
-        >
-          ล้างตัวกรอง
-        </Button>
-      </div>
-    );
-
-    const BookingFilter = () => (
-      <div className="p-3">
-        <div className="font-medium mb-2">กรองวันที่</div>
-        <RangePicker
-          locale={locale}
-          format="DD/MM/YYYY"
-          value={bookingFilter}
-          onChange={setBookingFilter}
-          className="w-full"
-        />
-        <Button
-          onClick={() => setBookingFilter(null)}
-          className="mt-2 w-full"
-          size="small"
-        >
-          ล้างตัวกรอง
-        </Button>
-      </div>
-    );
+    const tabItems = [
+      {
+        key: 'attendance',
+        label: (
+          <div className="flex items-center gap-2">
+            <TeamOutlined />
+            <span className="hidden sm:inline">การเข้าโรงเรียน</span>
+            <Badge count={filteredAttendance.length} size="small" />
+          </div>
+        )
+      },
+      {
+        key: 'leaves',
+        label: (
+          <div className="flex items-center gap-2">
+            <ClockCircleOutlined />
+            <span className="hidden sm:inline">การลา</span>
+            <Badge
+              count={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ').length}
+              size="small"
+              className="bg-orange-500"
+            />
+          </div>
+        )
+      },
+      {
+        key: 'bookings',
+        label: (
+          <div className="flex items-center gap-2">
+            <TagsOutlined />
+            <span className="hidden sm:inline">จองห้อง</span>
+            <Badge count={filteredBookings.length} size="small" />
+          </div>
+        )
+      }
+    ];
 
     return (
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">แดชบอร์ดผู้ดูแล</h1>
-          <p className="text-gray-600">ภาพรวมการเข้าโรงเรียนและการจองห้อง</p>
+      <div className="min-h-screen bg-gray-50">
+        {/* Enhanced Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <BarChartOutlined className="text-white text-xl" />
+                </div>
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">แดชบอร์ดผู้ดูแล</h1>
+                  <p className="text-gray-600 mt-1">จัดการและติดตามการเข้าโรงเรียน การลา และการจองห้อง</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="hidden lg:block text-right">
+                  <p className="text-sm text-gray-500">วันนี้</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {dayjs().format('DD/MM/YYYY')}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    icon={<BellOutlined />}
+                    size="large"
+                    className="hidden sm:flex"
+                  />
+                  <Button icon={<SettingOutlined />} size="large" className="hidden sm:flex" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Stats Summary */}
-        <Row gutter={16} className="mb-6">
-          <Col xs={24} sm={12} md={6} className="mb-4">
-            <StatsCard
-              title="มาโรงเรียนวันนี้"
-              value={summary.present.today}
-              icon={<TeamOutlined className="text-green-600 text-xl" />}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Enhanced Stats Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <EnhancedStatsCard
+              title="อัตราการเข้าโรงเรียน"
+              value={`${summary.present.rate}%`}
+              subtitle={`${summary.present.today}/${summary.total} คน`}
+              icon={<TeamOutlined />}
               color="green"
+              progress={summary.present.rate}
             />
-          </Col>
-          <Col xs={24} sm={12} md={6} className="mb-4">
-            <StatsCard
-              title="ขาดโรงเรียนวันนี้"
+            <EnhancedStatsCard
+              title="ขาดโรงเรียน"
               value={summary.absent.today}
-              icon={<CloseCircleOutlined className="text-red-600 text-xl" />}
+              subtitle="คน"
+              icon={<CloseCircleOutlined />}
               color="red"
             />
-          </Col>
-          <Col xs={24} sm={12} md={6} className="mb-4">
-            <StatsCard
-              title="สายวันนี้"
+            <EnhancedStatsCard
+              title="เข้าสาย"
               value={summary.late.today}
-              icon={<WarningOutlined className="text-orange-600 text-xl" />}
+              subtitle="คน"
+              icon={<WarningOutlined />}
               color="orange"
             />
-          </Col>
-          <Col xs={24} sm={12} md={6} className="mb-4">
-            <StatsCard
-              title="ลาวันนี้"
-              value={summary.leave.today}
-              icon={<ClockCircleOutlined className="text-blue-600 text-xl" />}
+            <EnhancedStatsCard
+              title="คำขอลา"
+              value={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ').length}
+              subtitle="รอดำเนินการ"
+              icon={<ClockCircleOutlined />}
               color="blue"
             />
-          </Col>
-        </Row>
+          </div>
 
-        {/* Sections */}
-        <Card
-          className="mb-6 shadow-sm"
-          title={
-            <div className="flex items-center gap-2">
-              <TeamOutlined className="text-indigo-600" />
-              <span>บันทึกการเข้าโรงเรียนล่าสุด</span>
-              <Badge count={filteredAttendance.length} className="ml-2" />
+          {/* Main Content */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="border-b border-gray-200">
+              <Tabs
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                items={tabItems}
+                className="px-6"
+                size="large"
+              />
             </div>
-          }
-          extra={
-            <Space>
-              <Popover
-                content={<AttendanceFilter />}
-                title="กรองข้อมูล"
-                trigger="click"
-                placement="bottomRight"
-              >
-                <Button icon={<FilterOutlined />}>
-                  กรอง
-                  {attendanceFilter && <CheckOutlined className="ml-1 text-green-600" />}
-                </Button>
-              </Popover>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={exportAttendance}
-                loading={isLoading}
-              >
-                ส่งออก
-              </Button>
-            </Space>
-          }
-        >
-          <Table
-            dataSource={filteredAttendance}
-            columns={attendanceColumns}
-            pagination={{ pageSize: 5 }}
-            rowKey="id"
-            size="small"
-          />
-        </Card>
 
-        <Card
-          className="mb-6 shadow-sm"
-          title={
-            <div className="flex items-center gap-2">
-              <TagsOutlined className="text-purple-600" />
-              <span>การจองห้องล่าสุด</span>
-              <Badge count={filteredBookings.length} className="ml-2" />
-            </div>
-          }
-          extra={
-            <Space>
-              <Popover
-                content={<BookingFilter />}
-                title="กรองข้อมูล"
-                trigger="click"
-                placement="bottomRight"
-              >
-                <Button icon={<FilterOutlined />}>
-                  กรอง
-                  {bookingFilter && <CheckOutlined className="ml-1 text-green-600" />}
-                </Button>
-              </Popover>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={exportBookings}
-                loading={isLoading}
-              >
-                ส่งออก
-              </Button>
-            </Space>
-          }
-        >
-          <Table
-            dataSource={filteredBookings}
-            columns={bookingColumns}
-            pagination={{ pageSize: 5 }}
-            rowKey="id"
-            size="small"
-          />
-        </Card>
+            <div className="p-6">
+              {activeTab === 'attendance' && (
+                <div>
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">บันทึกการเข้าโรงเรียน</h2>
+                      <p className="text-gray-600">จัดการและติดตามการเข้าโรงเรียนของบุคลากร</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Popover
+                        content={<FilterComponent filter={attendanceFilter} setFilter={setAttendanceFilter} title="กรองข้อมูลการเข้าโรงเรียน" />}
+                        title="ตัวกรองขั้นสูง"
+                        trigger="click"
+                        placement="bottomRight"
+                      >
+                        <Button icon={<FilterOutlined />} size="large">
+                          กรองข้อมูล
+                          {attendanceFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                        </Button>
+                      </Popover>
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        onClick={exportAttendance}
+                        loading={isLoading}
+                        size="large"
+                      >
+                        ส่งออก Excel
+                      </Button>
+                    </div>
+                  </div>
 
-        <Card
-          className="shadow-sm"
-          title={
-            <div className="flex items-center gap-2">
-              <ClockCircleOutlined className="text-blue-600" />
-              <span>คำขอลาที่รอดำเนินการ</span>
-              <Badge count={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ').length} className="ml-2" />
+                  {/* Desktop Table */}
+                  <div className="hidden lg:block">
+                    <Table
+                      dataSource={filteredAttendance}
+                      columns={attendanceColumns}
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`
+                      }}
+                      rowKey="id"
+                      className="rounded-lg overflow-hidden"
+                    />
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="lg:hidden space-y-4">
+                    {filteredAttendance.length > 0 ? (
+                      filteredAttendance.map((item) => (
+                        <EnhancedMobileCard key={item.id} item={item} type="attendance" />
+                      ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <TeamOutlined className="text-gray-300 text-4xl mb-4" />
+                        <p className="text-gray-500">ไม่พบข้อมูลการเข้าโรงเรียน</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'leaves' && (
+                <div>
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">คำขอลาที่รอดำเนินการ</h2>
+                      <p className="text-gray-600">อนุมัติหรือปฏิเสธคำขอลาของบุคลากร</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Popover
+                        content={<FilterComponent filter={leaveFilter} setFilter={setLeaveFilter} title="กรองข้อมูลการลา" />}
+                        title="ตัวกรองขั้นสูง"
+                        trigger="click"
+                        placement="bottomRight"
+                      >
+                        <Button icon={<FilterOutlined />} size="large">
+                          กรองข้อมูล
+                          {leaveFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                        </Button>
+                      </Popover>
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        onClick={exportLeaves}
+                        loading={isLoading}
+                        size="large"
+                      >
+                        ส่งออก Excel
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Desktop Table */}
+                  <div className="hidden lg:block">
+                    <Table
+                      dataSource={filteredLeaves}
+                      columns={leaveColumns}
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`
+                      }}
+                      rowKey="id"
+                    />
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="lg:hidden space-y-4">
+                    {filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ').length > 0 ? (
+                      filteredLeaves
+                        .filter(leave => leave.status === 'รอดำเนินการ')
+                        .map((item) => (
+                          <EnhancedMobileCard key={item.id} item={item} type="leave" />
+                        ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <ClockCircleOutlined className="text-gray-300 text-4xl mb-4" />
+                        <p className="text-gray-500">ไม่พบคำขอลาที่รอดำเนินการ</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'bookings' && (
+                <div>
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">การจองห้อง</h2>
+                      <p className="text-gray-600">จัดการและติดตามการจองห้องเรียนและห้องประชุม</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Popover
+                        content={<FilterComponent filter={bookingFilter} setFilter={setBookingFilter} title="กรองข้อมูลการจอง" />}
+                        title="ตัวกรองขั้นสูง"
+                        trigger="click"
+                        placement="bottomRight"
+                      >
+                        <Button icon={<FilterOutlined />} size="large">
+                          กรองข้อมูล
+                          {bookingFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                        </Button>
+                      </Popover>
+                      <Button
+                        type="primary"
+                        icon={<DownloadOutlined />}
+                        onClick={exportBookings}
+                        loading={isLoading}
+                        size="large"
+                      >
+                        ส่งออก Excel
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Desktop Table */}
+                  <div className="hidden lg:block">
+                    <Table
+                      dataSource={filteredBookings}
+                      columns={bookingColumns}
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`
+                      }}
+                      rowKey="id"
+                    />
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="lg:hidden space-y-4">
+                    {filteredBookings.length > 0 ? (
+                      filteredBookings.map((item) => (
+                        <EnhancedMobileCard key={item.id} item={item} type="booking" />
+                      ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <TagsOutlined className="text-gray-300 text-4xl mb-4" />
+                        <p className="text-gray-500">ไม่พบข้อมูลการจองห้อง</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          }
-          extra={
-            <Space>
-              <Popover
-                content={<LeaveFilter />}
-                title="กรองข้อมูล"
-                trigger="click"
-                placement="bottomRight"
-              >
-                <Button icon={<FilterOutlined />}>
-                  กรอง
-                  {leaveFilter && <CheckOutlined className="ml-1 text-green-600" />}
-                </Button>
-              </Popover>
-              <Button
-                type="primary"
-                icon={<DownloadOutlined />}
-                onClick={exportLeaves}
-                loading={isLoading}
-              >
-                ส่งออก
-              </Button>
-            </Space>
-          }
-        >
-          <Table
-            dataSource={filteredLeaves.filter(leave => leave.status === 'รอดำเนินการ')}
-            columns={leaveColumns}
-            pagination={{ pageSize: 5 }}
-            rowKey="id"
-            size="small"
-          />
-        </Card>
+          </div>
+        </div>
       </div>
     );
   };
