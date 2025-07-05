@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Layout,
   Menu,
@@ -17,6 +17,7 @@ import {
   Space,
   Badge,
   Tabs,
+  Calendar,
 } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
@@ -52,6 +53,7 @@ import {
   SettingOutlined,
   BellOutlined,
 } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 
 dayjs.extend(buddhistEra);
 dayjs.locale('th');
@@ -332,7 +334,10 @@ const App: React.FC = () => {
       { key: 'attendance', label: 'บันทึกการเข้าโรงเรียน', icon: <TeamOutlined /> },
       { key: 'leave', label: 'การลางาน', icon: <ClockCircleOutlined /> },
       { key: 'booking', label: 'การจองห้อง', icon: <TagsOutlined /> },
-      ...(currentUser?.role === 'admin' ? [{ key: 'dashboard', label: 'แดชบอร์ด', icon: <BarChartOutlined /> }] : [])
+      ...(currentUser?.role === 'admin'
+        ? [{ key: 'dashboard', label: 'แดชบอร์ด', icon: <BarChartOutlined /> }]
+        : [{ key: 'user-dashboard', label: 'แดชบอร์ดส่วนตัว', icon: <BarChartOutlined /> }]
+      )
     ];
 
     const toggleSidebar = () => {
@@ -934,6 +939,420 @@ const App: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
+        </Card>
+      </div>
+    );
+  };
+
+  // User Dashboard Page
+  const UserDashboardPage = () => {
+    const [dateFilter, setDateFilter] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState('attendance');
+    const [selectedMonth, setSelectedMonth] = useState(dayjs());
+
+    // Filter data for current user
+    const userAttendance = attendanceRecords.filter(
+      record => record.fullName === currentUser?.displayName
+    );
+
+    const userLeaves = leaveRequests.filter(
+      leave => leave.fullName === currentUser?.displayName
+    );
+
+    // Filter by date range
+    const filteredAttendance = dateFilter
+      ? userAttendance.filter(record => {
+        const recordDate = record.date;
+        const startDate = dateFilter[0].format('YYYY-MM-DD');
+        const endDate = dateFilter[1].format('YYYY-MM-DD');
+        return recordDate >= startDate && recordDate <= endDate;
+      })
+      : userAttendance;
+
+    const filteredLeaves = dateFilter
+      ? userLeaves.filter(leave => {
+        const leaveDate = leave.leaveDate;
+        const startDate = dateFilter[0].format('YYYY-MM-DD');
+        const endDate = dateFilter[1].format('YYYY-MM-DD');
+        return leaveDate >= startDate && leaveDate <= endDate;
+      })
+      : userLeaves;
+
+    // Calendar view - Group data by date
+    const calendarData = useMemo(() => {
+      const data: Record<string, { attendance?: string; leave?: string }> = {};
+
+      // Add attendance
+      userAttendance.forEach(record => {
+        data[record.date] = {
+          ...(data[record.date] || {}),
+          attendance: record.status
+        };
+      });
+
+      // Add leaves
+      userLeaves.forEach(leave => {
+        const leaveDates = getDateRange(leave.leaveDate, leave.endDate);
+        leaveDates.forEach(date => {
+          data[date] = {
+            ...(data[date] || {}),
+            leave: leave.type
+          };
+        });
+      });
+
+      return data;
+    }, [userAttendance, userLeaves]);
+
+    // Function to get date range
+    const getDateRange = (startDate: string, endDate?: string): string[] => {
+      if (!endDate) return [startDate];
+
+      const start = dayjs(startDate);
+      const end = dayjs(endDate);
+      const dates: string[] = [];
+
+      let current = start;
+      while (current.isBefore(end) || current.isSame(end)) {
+        dates.push(current.format('YYYY-MM-DD'));
+        current = current.add(1, 'day');
+      }
+
+      return dates;
+    };
+
+    // Render calendar cell
+    const renderCalendarCell = (date: dayjs.Dayjs) => {
+      const dateStr = date.format('YYYY-MM-DD');
+      const dayData = calendarData[dateStr];
+
+      if (!dayData) {
+        return <div className="p-1 min-h-[80px] border border-gray-100"></div>;
+      }
+
+      return (
+        <div className="p-1 min-h-[80px] border border-gray-100 bg-gray-50">
+          {dayData.attendance && (
+            <div className="mb-1">
+              <Tag
+                color={dayData.attendance === 'มา' ? 'green' :
+                  dayData.attendance === 'ขาด' ? 'red' :
+                    dayData.attendance === 'สาย' ? 'orange' : 'blue'}
+                className="text-xs"
+              >
+                {dayData.attendance}
+              </Tag>
+            </div>
+          )}
+
+          {dayData.leave && (
+            <div>
+              <Tag color="blue" className="text-xs">
+                {dayData.leave}
+              </Tag>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Export functions
+    const exportAttendance = () => {
+      const wb = XLSX.utils.book_new();
+      const attendanceData = filteredAttendance.map(record => ({
+        ID: record.id,
+        'ชื่อ-นามสกุล': record.fullName,
+        วันที่: formatDate(record.date),
+        สถานะ: record.status,
+        เหตุผล: record.reason || '',
+        'เวลาบันทึก': formatTime(record.timestamp.split('T')[1].substring(0, 5))
+      }));
+      const attendanceWs = XLSX.utils.json_to_sheet(attendanceData);
+      XLSX.utils.book_append_sheet(wb, attendanceWs, "บันทึกการเข้าโรงเรียน");
+      XLSX.writeFile(wb, `attendance-data-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      setSuccessMessage('ส่งออกข้อมูลการเข้าโรงเรียนสำเร็จแล้ว!');
+      setShowSuccessModal(true);
+    };
+
+    const exportLeaves = () => {
+      const wb = XLSX.utils.book_new();
+      const leaveData = filteredLeaves.map(leave => ({
+        ID: leave.id,
+        'ชื่อ-นามสกุล': leave.fullName,
+        'ประเภทการลา': leave.type,
+        'วันที่เริ่มลา': formatDate(leave.leaveDate),
+        'วันที่สิ้นสุด': leave.endDate ? formatDate(leave.endDate) : '',
+        เหตุผล: leave.reason,
+        สถานะ: leave.status,
+        'เวลาบันทึก': formatTime(leave.timestamp.split('T')[1].substring(0, 5))
+      }));
+      const leaveWs = XLSX.utils.json_to_sheet(leaveData);
+      XLSX.utils.book_append_sheet(wb, leaveWs, "การลางาน");
+      XLSX.writeFile(wb, `leave-requests-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      setSuccessMessage('ส่งออกข้อมูลการลางานสำเร็จแล้ว!');
+      setShowSuccessModal(true);
+    };
+
+    const attendanceColumns: ColumnsType<AttendanceRecord> = [
+      {
+        title: 'วันที่',
+        dataIndex: 'date',
+        key: 'date',
+        render: (date: string) => formatDate(date)
+      },
+      {
+        title: 'สถานะ',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string) => <StatusBadge status={status} />
+      },
+      {
+        title: 'เหตุผล',
+        dataIndex: 'reason',
+        key: 'reason',
+        render: (reason: string) => reason || <span className="text-gray-400">-</span>
+      }
+    ];
+
+    // Type สำหรับคอลัมน์ตารางการลา
+    const leaveColumns: ColumnsType<LeaveRequest> = [
+      {
+        title: 'ประเภท',
+        dataIndex: 'type',
+        key: 'type'
+      },
+      {
+        title: 'วันที่',
+        key: 'date',
+        render: (record: LeaveRequest) => (
+          <div>
+            <div>{formatDate(record.leaveDate)}</div>
+            {record.endDate && (
+              <div className="text-xs text-gray-500">ถึง {formatDate(record.endDate)}</div>
+            )}
+          </div>
+        )
+      },
+      {
+        title: 'เหตุผล',
+        dataIndex: 'reason',
+        key: 'reason'
+      },
+      {
+        title: 'สถานะ',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string) => <StatusBadge status={status} />
+      }
+    ];
+
+    // Filter Component
+    const FilterComponent: React.FC = () => (
+      <div className="p-4 w-80">
+        <div className="font-semibold text-gray-900 mb-3">กรองข้อมูลตามวันที่</div>
+        <div className="space-y-3">
+          <RangePicker
+            locale={locale}
+            format="DD/MM/YYYY"
+            value={dateFilter}
+            onChange={setDateFilter}
+            className="w-full"
+            placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
+          />
+          <Button
+            onClick={() => setDateFilter(null)}
+            className="w-full"
+            icon={<SyncOutlined />}
+          >
+            ล้างตัวกรอง
+          </Button>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">แดชบอร์ดส่วนตัว</h1>
+          <p className="text-gray-600">
+            ข้อมูลการเข้าเรียนและการลาของคุณ {currentUser?.displayName}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <CheckCircleOutlined className="text-green-600 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">เข้าเรียน</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userAttendance.filter(a => a.status === 'มา').length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <ClockCircleOutlined className="text-blue-600 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">การลา</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userLeaves.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <CloseCircleOutlined className="text-red-600 text-xl" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">ขาดเรียน</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {userAttendance.filter(a => a.status === 'ขาด').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar View */}
+        <Card className="mb-8 border border-gray-200 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+            <h2 className="text-xl font-semibold text-gray-900">ปฏิทินบันทึกการเข้าเรียน</h2>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setSelectedMonth(selectedMonth.subtract(1, 'month'))}
+                icon={<LeftOutlined />}
+              />
+              <DatePicker
+                picker="month"
+                value={selectedMonth}
+                onChange={(date) => setSelectedMonth(date || dayjs())}
+                format="MMMM BBBB"
+                locale={locale}
+                className="w-40"
+              />
+              <Button
+                onClick={() => setSelectedMonth(selectedMonth.add(1, 'month'))}
+                icon={<LeftOutlined className="rotate-180" />}
+              />
+            </div>
+          </div>
+
+          <div className="overflow-auto">
+            <Calendar
+              value={selectedMonth}
+              mode="month"
+              headerRender={() => null}
+              className="w-full min-w-[700px]"
+              dateFullCellRender={renderCalendarCell}
+            />
+          </div>
+        </Card>
+
+        {/* Data Tables */}
+        <Card className="border border-gray-200 shadow-sm">
+          <div className="border-b border-gray-200">
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              items={[
+                {
+                  key: 'attendance',
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <TeamOutlined />
+                      <span>การเข้าโรงเรียน</span>
+                      <Badge count={filteredAttendance.length} size="small" />
+                    </div>
+                  )
+                },
+                {
+                  key: 'leaves',
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <ClockCircleOutlined />
+                      <span>การลา</span>
+                      <Badge count={filteredLeaves.length} size="small" />
+                    </div>
+                  )
+                }
+              ]}
+              className="px-6"
+            />
+          </div>
+
+          <div className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  {activeTab === 'attendance' ? 'บันทึกการเข้าโรงเรียน' : 'ประวัติการลา'}
+                </h2>
+                <p className="text-gray-600">
+                  {activeTab === 'attendance'
+                    ? 'ข้อมูลการเข้าเรียนของคุณ'
+                    : 'ข้อมูลการลาของคุณ'}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Popover
+                  content={<FilterComponent />}
+                  title="ตัวกรองข้อมูล"
+                  trigger="click"
+                  placement="bottomRight"
+                >
+                  <Button icon={<FilterOutlined />} size="large">
+                    กรองข้อมูล
+                    {dateFilter && <CheckOutlined className="ml-2 text-green-600" />}
+                  </Button>
+                </Popover>
+                <Button
+                  type="primary"
+                  icon={<DownloadOutlined />}
+                  onClick={activeTab === 'attendance' ? exportAttendance : exportLeaves}
+                  size="large"
+                >
+                  ส่งออก Excel
+                </Button>
+              </div>
+            </div>
+
+            {activeTab === 'attendance' ? (
+              <Table<AttendanceRecord>
+                dataSource={filteredAttendance}
+                columns={attendanceColumns}
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`,
+                }}
+                rowKey="id"
+                className="rounded-lg overflow-hidden"
+              />
+            ) : (
+              <Table<LeaveRequest>
+                dataSource={filteredLeaves}
+                columns={leaveColumns}
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`,
+                }}
+                rowKey="id"
+                className="rounded-lg overflow-hidden"
+              />
+            )}
+          </div>
         </Card>
       </div>
     );
@@ -1778,6 +2197,7 @@ const App: React.FC = () => {
     return <LoginPage />;
   }
 
+  // ในส่วน renderPage
   const renderPage = () => {
     switch (currentPage) {
       case 'attendance':
@@ -1788,6 +2208,8 @@ const App: React.FC = () => {
         return <BookingPage />;
       case 'dashboard':
         return currentUser.role === 'admin' ? <DashboardPage /> : <AttendancePage />;
+      case 'user-dashboard': // เพิ่มเคสใหม่
+        return <UserDashboardPage />;
       default:
         return <AttendancePage />;
     }
