@@ -1,3 +1,44 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+    {
+    /* Custom Styles */
+}
+
+.ant-layout-sider {
+    transition: all 0.3s ease-in-out !important;
+}
+
+.ant-menu-item {
+    margin: 4px 0 !important;
+    border-radius: 8px !important;
+}
+
+.ant-menu-item-selected {
+    background: rgba(99, 102, 241, 0.7) !important;
+}
+
+.ant-menu-item:hover {
+    background: rgba(99, 102, 241, 0.5) !important;
+}
+
+@media (max-width: 768px) {
+    .ant-layout-sider {
+        position: fixed !important;
+        height: 100vh !important;
+        z-index: 1000 !important;
+        left: -280px !important;
+    }
+
+    .ant-layout-sider:not(.ant-layout-sider-collapsed) {
+        left: 0 !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .ant-layout-sider {
+        position: relative !important;
+        height: auto !important;
+    }
+}

@@ -46,6 +46,7 @@ import {
   LockOutlined,
   FilterOutlined,
   CheckOutlined,
+  CloseOutlined,
   LeftOutlined
 } from '@ant-design/icons';
 
@@ -168,7 +169,12 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const config = statusConfig[status] || { color: 'default', icon: null };
 
   return (
-    <Tag icon={config.icon} color={config.color}>
+    <Tag
+      icon={config.icon}
+      color={config.color}
+      className="text-xs sm:text-sm w-20 flex items-center justify-center"
+      style={{ minWidth: '80px', height: '24px', display: 'flex', alignItems: 'center' }}
+    >
       {status}
     </Tag>
   );
@@ -192,9 +198,6 @@ const App: React.FC = () => {
   // Form states
   const [leaveForm] = Form.useForm();
   const [bookingForm] = Form.useForm();
-
-  // Toggle sidebar for mobile
-  const toggleSidebar = () => setCollapsed(prev => !prev);
 
   // Login Component
   const LoginPage = () => {
@@ -323,48 +326,97 @@ const App: React.FC = () => {
       ...(currentUser?.role === 'admin' ? [{ key: 'dashboard', label: 'แดชบอร์ด', icon: <BarChartOutlined /> }] : [])
     ];
 
+    const toggleSidebar = () => {
+      const isMobile = window.innerWidth < 768;
+      setCollapsed(!collapsed);
+      if (isMobile) {
+        setShowMobileOverlay(!collapsed);
+      }
+    };
+
+    const closeSidebar = () => {
+      setCollapsed(true);
+      setShowMobileOverlay(false);
+    };
+
     return (
       <Layout className="min-h-screen">
+        {/* Mobile Overlay */}
         {showMobileOverlay && (
           <div
-            className="mobile-overlay md:hidden"
-            onClick={() => {
-              setCollapsed(true);
-              setShowMobileOverlay(false);
-            }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={closeSidebar}
           />
         )}
+
+        {/* Sidebar */}
         <Sider
           trigger={null}
           collapsible
           collapsed={collapsed}
-          width={250}
+          width={280}
           theme="dark"
-          className={`!bg-gradient-to-b from-indigo-700 to-purple-800 ${collapsed ? 'collapsed-mobile' : ''}`}
+          className={`
+          !bg-gradient-to-b from-indigo-700 to-purple-800 
+          md:relative fixed z-50 h-full
+          transition-all duration-300 ease-in-out
+          ${collapsed ? 'md:w-20' : 'md:w-280'}
+          ${collapsed ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
+        `}
+          style={{
+            left: window.innerWidth < 768 ? (collapsed ? '-280px' : '0') : undefined,
+          }}
         >
-          {!collapsed &&
-            <div className="p-5 text-white">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">ระบบจัดการโรงเรียน</h2>
-              </div>
-              <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.displayName}</p>
+          {/* Header Section */}
+          <div className="p-5 text-white border-b border-indigo-600/30">
+            <div className="flex items-center justify-between">
+              {!collapsed && (
+                <>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold">ระบบจัดการโรงเรียน</h2>
+                    <p className="text-sm opacity-90 mt-1">ยินดีต้อนรับ, {currentUser?.displayName}</p>
+                  </div>
+                  {/* Close button for mobile */}
+                  <Button
+                    type="text"
+                    icon={<CloseOutlined className="text-white" />}
+                    onClick={closeSidebar}
+                    className="md:hidden text-white hover:bg-indigo-600/50"
+                    size="small"
+                  />
+                </>
+              )}
+              {collapsed && (
+                <div className="flex justify-center w-full">
+                  <UserOutlined className="text-2xl text-white" />
+                </div>
+              )}
             </div>
-          }
+          </div>
 
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[currentPage]}
-            items={menuItems}
-            onSelect={({ key }) => {
-              setCurrentPage(key);
-              setCollapsed(true);
-              setShowMobileOverlay(false);
-            }}
-            className="bg-transparent"
-          />
+          {/* Menu Items */}
+          <div className="flex-1 py-4">
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[currentPage]}
+              items={menuItems.map(item => ({
+                ...item,
+                className: 'hover:bg-indigo-600/50 mx-2 rounded-lg'
+              }))}
+              onSelect={({ key }) => {
+                setCurrentPage(key);
+                // ปิด sidebar เฉพาะบน mobile
+                if (window.innerWidth < 768) {
+                  closeSidebar();
+                }
+              }}
+              className="bg-transparent border-0"
+            />
+          </div>
 
-          <div className="absolute bottom-4 left-4 right-4">
+          {/* Logout Button */}
+          <div className="p-4 border-t border-indigo-600/30">
             <Button
               onClick={() => {
                 setCurrentUser(null);
@@ -373,32 +425,51 @@ const App: React.FC = () => {
               block
               size="large"
               icon={<LogoutOutlined />}
-              className="text-black hover:bg-indigo-600"
+              className="bg-red-500 hover:bg-red-600 border-red-500 text-white font-medium"
             >
               {!collapsed && <span>ออกจากระบบ</span>}
             </Button>
           </div>
         </Sider>
 
-        <Layout>
-          <Header className="bg-white shadow-sm flex items-center px-4">
+        {/* Main Content */}
+        <Layout className={`transition-all duration-300 ${window.innerWidth >= 768 ? (collapsed ? 'md:ml-20' : 'md:ml-280') : ''}`}>
+          {/* Header */}
+          <Header className="bg-white shadow-md flex items-center px-4 sticky top-0 z-30">
             <Button
               type="text"
-              icon={collapsed ? <MenuOutlined className="text-gray-700 text-xl" /> : <LeftOutlined className="text-gray-700 text-xl" />}
+              icon={
+                window.innerWidth < 768
+                  ? <MenuOutlined className="text-gray-700 text-xl" />
+                  : (collapsed ? <MenuOutlined className="text-gray-700 text-xl" /> : <LeftOutlined className="text-gray-700 text-xl" />)
+              }
               onClick={toggleSidebar}
-              className="text-lg mr-4"
+              className="text-lg mr-4 hover:bg-gray-100 p-2 rounded-lg"
             />
-            <div className="flex-1" />
+
+            {/* Page Title */}
+            <div className="flex-1">
+              <h1 className="text-lg font-semibold text-gray-800">
+                {menuItems.find(item => item.key === currentPage)?.label || 'หน้าหลัก'}
+              </h1>
+            </div>
+
+            {/* User Profile */}
             <div className="flex items-center gap-3">
-              <span className="font-medium">{currentUser?.displayName}</span>
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                <UserOutlined className="text-indigo-600" />
+              <div className="hidden sm:block">
+                <span className="font-medium text-gray-700">{currentUser?.displayName}</span>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <UserOutlined className="text-white text-lg" />
               </div>
             </div>
           </Header>
 
-          <Content className="p-6 bg-gray-50 min-h-[280px]">
-            {renderPage()}
+          {/* Content */}
+          <Content className="p-4 sm:p-6 bg-gray-50 min-h-[calc(100vh-64px)] overflow-auto">
+            <div className="max-w-7xl mx-auto">
+              {renderPage()}
+            </div>
           </Content>
         </Layout>
       </Layout>
@@ -411,7 +482,6 @@ const App: React.FC = () => {
     value: number | string;
     icon: React.ReactNode;
     color: string;
-    trend?: number;
   }> = ({ title, value, icon, color }) => {
     return (
       <Card className="h-full shadow-sm border border-gray-200">
