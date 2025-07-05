@@ -34,7 +34,6 @@ import {
   EnvironmentOutlined,
   FileTextOutlined,
   MenuOutlined,
-  LeftOutlined,
   TeamOutlined,
   ClockCircleOutlined,
   TagsOutlined,
@@ -46,7 +45,8 @@ import {
   MoonOutlined,
   LockOutlined,
   FilterOutlined,
-  CheckOutlined
+  CheckOutlined,
+  LeftOutlined
 } from '@ant-design/icons';
 
 dayjs.extend(buddhistEra);
@@ -160,7 +160,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     'ขาด': { color: 'red', icon: <CloseCircleOutlined /> },
     'สาย': { color: 'orange', icon: <WarningOutlined /> },
     'ลา': { color: 'blue', icon: <CalendarOutlined /> },
-    'รอดำเนินการ': { color: 'default', icon: <SyncOutlined spin /> },
+    'รอดำเนินการ': { color: 'default', icon: <SyncOutlined /> },
     'อนุมัติ': { color: 'green', icon: <CheckCircleOutlined /> },
     'ปฏิเสธ': { color: 'red', icon: <CloseCircleOutlined /> }
   };
@@ -183,7 +183,7 @@ const App: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
-
+  
   // Data states
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(MOCK_LEAVES);
@@ -194,10 +194,7 @@ const App: React.FC = () => {
   const [bookingForm] = Form.useForm();
 
   // Toggle sidebar for mobile
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-    setShowMobileOverlay(!collapsed);
-  };
+  const toggleSidebar = () => setCollapsed(prev => !prev);
 
   // Login Component
   const LoginPage = () => {
@@ -374,9 +371,9 @@ const App: React.FC = () => {
               block
               size="large"
               icon={<LogoutOutlined />}
-              className="text-white border-white hover:bg-indigo-600"
+              className="text-black hover:bg-indigo-600"
             >
-              {!collapsed && <span className="text-white">ออกจากระบบ</span>}
+              {!collapsed && <span>ออกจากระบบ</span>}
             </Button>
           </div>
         </Sider>
