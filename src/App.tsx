@@ -59,7 +59,6 @@ dayjs.extend(buddhistEra);
 dayjs.locale('th');
 
 const { Header, Sider, Content } = Layout;
-const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
 // Types
@@ -944,7 +943,9 @@ const App: React.FC = () => {
 
   // User Dashboard Page
   const UserDashboardPage = () => {
-    const [dateFilter, setDateFilter] = useState<any>(null);
+    const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
+    const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
+    const [dateFilter, ] = useState<any>(null);
     const [activeTab, setActiveTab] = useState('attendance');
     const [selectedMonth, setSelectedMonth] = useState(dayjs());
 
@@ -958,14 +959,15 @@ const App: React.FC = () => {
     );
 
     // Filter by date range
-    const filteredAttendance = dateFilter
-      ? userAttendance.filter(record => {
-        const recordDate = record.date;
-        const startDate = dateFilter[0].format('YYYY-MM-DD');
-        const endDate = dateFilter[1].format('YYYY-MM-DD');
-        return recordDate >= startDate && recordDate <= endDate;
-      })
-      : userAttendance;
+    const filteredAttendance = userAttendance.filter(record => {
+      const recordDate = record.date;
+      if (startDate && endDate) {
+        const start = startDate.format('YYYY-MM-DD');
+        const end = endDate.format('YYYY-MM-DD');
+        return recordDate >= start && recordDate <= end;
+      }
+      return true;
+    });
 
     const filteredLeaves = dateFilter
       ? userLeaves.filter(leave => {
@@ -1149,17 +1151,28 @@ const App: React.FC = () => {
       <div className="p-4 w-80">
         <div className="font-semibold text-gray-900 mb-3">กรองข้อมูลตามวันที่</div>
         <div className="space-y-3">
-          <RangePicker
+          <DatePicker
             locale={locale}
             format="DD/MM/YYYY"
-            value={dateFilter}
-            onChange={setDateFilter}
+            placeholder="วันที่เริ่มต้น"
+            value={startDate}
+            onChange={setStartDate}
+            className="w-full mb-2"
+          />
+          <DatePicker
+            locale={locale}
+            format="DD/MM/YYYY"
+            placeholder="วันที่สิ้นสุด"
+            value={endDate}
+            onChange={setEndDate}
             className="w-full"
-            placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
           />
           <Button
-            onClick={() => setDateFilter(null)}
-            className="w-full"
+            onClick={() => {
+              setStartDate(null);
+              setEndDate(null);
+            }}
+            className="w-full mt-2"
             icon={<SyncOutlined />}
           >
             ล้างตัวกรอง
@@ -1358,6 +1371,8 @@ const App: React.FC = () => {
 
   // Admin Dashboard
   const DashboardPage = () => {
+    const [attendanceStartDate, setAttendanceStartDate] = useState<dayjs.Dayjs | null>(null);
+    const [attendanceEndDate, setAttendanceEndDate] = useState<dayjs.Dayjs | null>(null);
     const [attendanceFilter, setAttendanceFilter] = useState<any>(null);
     const [leaveFilter, setLeaveFilter] = useState<any>(null);
     const [bookingFilter, setBookingFilter] = useState<any>(null);
@@ -1486,14 +1501,15 @@ const App: React.FC = () => {
     };
 
     // Filtered data with date range inclusion
-    const filteredAttendance = attendanceFilter
-      ? attendanceRecords.filter(record => {
-        const recordDate = record.date;
-        const startDate = attendanceFilter[0].format('YYYY-MM-DD');
-        const endDate = attendanceFilter[1].format('YYYY-MM-DD');
-        return recordDate >= startDate && recordDate <= endDate;
-      })
-      : attendanceRecords;
+    const filteredAttendance = attendanceRecords.filter(record => {
+      const recordDate = record.date;
+      if (attendanceStartDate && attendanceEndDate) {
+        const start = attendanceStartDate.format('YYYY-MM-DD');
+        const end = attendanceEndDate.format('YYYY-MM-DD');
+        return recordDate >= start && recordDate <= end;
+      }
+      return true;
+    });
 
     const filteredLeaves = leaveFilter
       ? leaveRequests.filter(leave => {
@@ -1658,29 +1674,33 @@ const App: React.FC = () => {
       filter: any;
       setFilter: React.Dispatch<React.SetStateAction<any>>;
       title: string
-    }> = ({ filter, setFilter, title }) => {
-      const ranges: Record<string, [dayjs.Dayjs, dayjs.Dayjs]> = {
-        'วันนี้': [dayjs(), dayjs()],
-        'สัปดาห์นี้': [dayjs().startOf('week'), dayjs().endOf('week')],
-        'เดือนนี้': [dayjs().startOf('month'), dayjs().endOf('month')],
-      };
-
+    }> = ({ title }) => {
       return (
         <div className="p-4 w-80">
           <div className="font-semibold text-gray-900 mb-3">{title}</div>
           <div className="space-y-3">
-            <RangePicker
+            <DatePicker
               locale={locale}
               format="DD/MM/YYYY"
-              value={filter}
-              onChange={setFilter}
+              placeholder="วันที่เริ่มต้น"
+              value={attendanceStartDate}
+              onChange={setAttendanceStartDate}
+              className="w-full mb-2"
+            />
+            <DatePicker
+              locale={locale}
+              format="DD/MM/YYYY"
+              placeholder="วันที่สิ้นสุด"
+              value={attendanceEndDate}
+              onChange={setAttendanceEndDate}
               className="w-full"
-              placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
-              ranges={ranges}
             />
             <Button
-              onClick={() => setFilter(null)}
-              className="w-full"
+              onClick={() => {
+                setAttendanceStartDate(null);
+                setAttendanceEndDate(null);
+              }}
+              className="w-full mt-2"
               icon={<SyncOutlined />}
             >
               ล้างตัวกรอง
